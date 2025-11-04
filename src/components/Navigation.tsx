@@ -6,9 +6,10 @@ const navItems = [
   { path: "/", label: "Dashboard" },
   { path: "/quotes", label: "Quotes" },
   { path: "/load-matching", label: "Load Matching" },
-  { path: "/documents", label: "Document Automation" },
+  { path: "/documents", label: "Documents" },
   { path: "/forecasting", label: "Forecasting" },
   { path: "/analytics", label: "Analytics" },
+  { path: "/route-planning", label: "Route Planning" },
 ];
 
 export const Navigation = () => {
@@ -23,7 +24,7 @@ export const Navigation = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--orange-glow))] to-[hsl(var(--orange-bright))] flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-white">AI Freight OS</span>
+            <span className="text-xl font-bold text-white">McCarthy AI</span>
           </div>
 
           {/* Nav Links */}

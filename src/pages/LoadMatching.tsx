@@ -119,38 +119,138 @@ const LoadMatching = () => {
                 </div>
               </div>
 
-              {/* Simplified Network Map */}
-              <div className="relative h-full rounded-xl bg-gradient-to-br from-[hsl(var(--navy-panel))] to-[hsl(var(--navy-medium))] overflow-hidden">
-                <svg viewBox="0 0 800 400" className="w-full h-full">
-                  {/* Network connections */}
-                  <g opacity="0.4">
-                    <line x1="150" y1="120" x2="450" y2="250" stroke="hsl(var(--cyan-glow))" strokeWidth="1" className="animate-pulse" />
-                    <line x1="150" y1="120" x2="300" y2="200" stroke="hsl(var(--cyan-glow))" strokeWidth="1" className="animate-pulse" />
-                    <line x1="300" y1="200" x2="550" y2="150" stroke="hsl(var(--cyan-glow))" strokeWidth="1" className="animate-pulse" />
-                    <line x1="450" y1="250" x2="650" y2="180" stroke="hsl(var(--cyan-glow))" strokeWidth="1" className="animate-pulse" />
+              {/* Interactive Globe Map */}
+              <div className="relative h-full rounded-xl overflow-hidden bg-gradient-to-br from-[#0a1628] via-[#1a2742] to-[#0f1929]">
+                {/* Stars background */}
+                <div className="absolute inset-0">
+                  {[...Array(50)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+                      style={{
+                        top: `${Math.random() * 100}%`,
+                        left: `${Math.random() * 100}%`,
+                        opacity: Math.random() * 0.5 + 0.2,
+                        animationDelay: `${Math.random() * 3}s`,
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Globe/Earth simulation */}
+                <svg viewBox="0 0 800 400" className="w-full h-full relative z-10">
+                  <defs>
+                    {/* Gradient for ocean */}
+                    <radialGradient id="oceanGradient" cx="50%" cy="50%">
+                      <stop offset="0%" stopColor="#1e3a5f" />
+                      <stop offset="100%" stopColor="#0a1628" />
+                    </radialGradient>
+                    {/* Glow effect */}
+                    <filter id="glow">
+                      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                      <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  {/* Ocean/Earth base */}
+                  <ellipse cx="400" cy="200" rx="350" ry="180" fill="url(#oceanGradient)" opacity="0.3" />
+                  
+                  {/* Latitude/longitude grid lines */}
+                  <g opacity="0.15" stroke="#00E6FF" strokeWidth="0.5">
+                    <ellipse cx="400" cy="200" rx="350" ry="180" fill="none" />
+                    <ellipse cx="400" cy="200" rx="350" ry="120" fill="none" />
+                    <ellipse cx="400" cy="200" rx="350" ry="60" fill="none" />
+                    <ellipse cx="400" cy="200" rx="280" ry="180" fill="none" />
+                    <ellipse cx="400" cy="200" rx="210" ry="180" fill="none" />
+                    <ellipse cx="400" cy="200" rx="140" ry="180" fill="none" />
+                    <ellipse cx="400" cy="200" rx="70" ry="180" fill="none" />
+                  </g>
+
+                  {/* Animated network connections across globe */}
+                  <g opacity="0.6" filter="url(#glow)">
+                    <line x1="200" y1="180" x2="380" y2="220" stroke="hsl(var(--cyan-glow))" strokeWidth="1.5" className="animate-pulse" strokeDasharray="4,4">
+                      <animate attributeName="stroke-dashoffset" from="0" to="8" dur="1s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="200" y1="180" x2="300" y2="240" stroke="hsl(var(--cyan-glow))" strokeWidth="1.5" className="animate-pulse" strokeDasharray="4,4">
+                      <animate attributeName="stroke-dashoffset" from="0" to="8" dur="1.2s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="300" y1="240" x2="520" y2="160" stroke="hsl(var(--cyan-glow))" strokeWidth="1.5" className="animate-pulse" strokeDasharray="4,4">
+                      <animate attributeName="stroke-dashoffset" from="0" to="8" dur="1.1s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="380" y1="220" x2="580" y2="190" stroke="hsl(var(--orange-glow))" strokeWidth="2" className="animate-pulse" strokeDasharray="4,4">
+                      <animate attributeName="stroke-dashoffset" from="0" to="8" dur="0.9s" repeatCount="indefinite" />
+                    </line>
+                    <line x1="520" y1="160" x2="600" y2="200" stroke="hsl(var(--orange-glow))" strokeWidth="2" className="animate-pulse" strokeDasharray="4,4">
+                      <animate attributeName="stroke-dashoffset" from="0" to="8" dur="1s" repeatCount="indefinite" />
+                    </line>
                   </g>
                   
-                  {/* Cities */}
+                  {/* Major cities/nodes on map */}
+                  <g filter="url(#glow)">
+                    {/* West Coast - Seattle/San Francisco */}
+                    <circle cx="200" cy="180" r="6" fill="hsl(var(--cyan-glow))" className="animate-pulse-glow">
+                      <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="200" cy="180" r="12" fill="none" stroke="hsl(var(--cyan-glow))" strokeWidth="1" opacity="0.3" />
+                    <text x="200" y="170" textAnchor="middle" fill="white" fontSize="11" fontWeight="500">Seattle</text>
+                    
+                    {/* Midwest - Chicago */}
+                    <circle cx="380" cy="220" r="6" fill="hsl(var(--cyan-glow))" className="animate-pulse-glow">
+                      <animate attributeName="r" values="6;8;6" dur="2.2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="380" cy="220" r="12" fill="none" stroke="hsl(var(--cyan-glow))" strokeWidth="1" opacity="0.3" />
+                    <text x="380" y="240" textAnchor="middle" fill="white" fontSize="11" fontWeight="500">Chicago</text>
+                    
+                    {/* East Coast - New York */}
+                    <circle cx="520" cy="160" r="7" fill="hsl(var(--orange-glow))" className="animate-pulse-glow">
+                      <animate attributeName="r" values="7;9;7" dur="1.8s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="520" cy="160" r="14" fill="none" stroke="hsl(var(--orange-glow))" strokeWidth="1.5" opacity="0.4" />
+                    <text x="520" y="145" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">New York</text>
+                    
+                    {/* Southwest */}
+                    <circle cx="300" cy="240" r="6" fill="hsl(var(--orange-glow))" className="animate-pulse-glow">
+                      <animate attributeName="r" values="6;8;6" dur="2.5s" repeatCount="indefinite" />
+                    </circle>
+                    <text x="300" y="260" textAnchor="middle" fill="white" fontSize="10">Phoenix</text>
+                    
+                    {/* South - Houston */}
+                    <circle cx="380" cy="280" r="6" fill="hsl(var(--orange-glow))" className="animate-pulse-glow">
+                      <animate attributeName="r" values="6;8;6" dur="2.1s" repeatCount="indefinite" />
+                    </circle>
+                    <text x="380" y="300" textAnchor="middle" fill="white" fontSize="10">Houston</text>
+                    
+                    {/* Southeast - Atlanta */}
+                    <circle cx="460" cy="250" r="6" fill="hsl(var(--cyan-glow))" className="animate-pulse-glow">
+                      <animate attributeName="r" values="6;8;6" dur="1.9s" repeatCount="indefinite" />
+                    </circle>
+                    <text x="460" y="270" textAnchor="middle" fill="white" fontSize="10">Atlanta</text>
+
+                    {/* Northeast - Boston */}
+                    <circle cx="580" cy="190" r="5" fill="hsl(var(--orange-glow))" className="animate-pulse-glow">
+                      <animate attributeName="r" values="5;7;5" dur="2.3s" repeatCount="indefinite" />
+                    </circle>
+                    <text x="580" y="180" textAnchor="middle" fill="white" fontSize="10">Boston</text>
+                  </g>
+
+                  {/* Traveling data packets/trucks */}
                   <g>
-                    <circle cx="150" cy="120" r="8" fill="hsl(var(--cyan-glow))" className="animate-pulse-glow" />
-                    <text x="150" y="105" textAnchor="middle" fill="white" fontSize="12">Seattle</text>
-                    
-                    <circle cx="450" cy="250" r="8" fill="hsl(var(--cyan-glow))" className="animate-pulse-glow" />
-                    <text x="450" y="270" textAnchor="middle" fill="white" fontSize="12">Chicago</text>
-                    
-                    <circle cx="550" cy="150" r="8" fill="hsl(var(--orange-glow))" className="animate-pulse-glow" />
-                    <text x="550" y="135" textAnchor="middle" fill="white" fontSize="12">New York</text>
-                    
-                    <circle cx="300" cy="200" r="8" fill="hsl(var(--orange-glow))" className="animate-pulse-glow" />
-                    <text x="300" y="220" textAnchor="middle" fill="white" fontSize="12">San Francisco</text>
-                    
-                    <circle cx="450" cy="320" r="8" fill="hsl(var(--orange-glow))" className="animate-pulse-glow" />
-                    <text x="450" y="340" textAnchor="middle" fill="white" fontSize="12">Houston</text>
-                    
-                    <circle cx="500" cy="280" r="8" fill="hsl(var(--cyan-glow))" className="animate-pulse-glow" />
-                    <text x="500" y="300" textAnchor="middle" fill="white" fontSize="12">Atlanta</text>
+                    <circle r="3" fill="white" opacity="0.9">
+                      <animateMotion dur="8s" repeatCount="indefinite" path="M 200 180 Q 290 200, 380 220" />
+                    </circle>
+                    <circle r="3" fill="white" opacity="0.9">
+                      <animateMotion dur="6s" repeatCount="indefinite" path="M 520 160 Q 450 205, 380 220" />
+                    </circle>
                   </g>
                 </svg>
+
+                {/* Control hint */}
+                <div className="absolute bottom-4 right-4 px-3 py-2 rounded-lg bg-[hsl(var(--navy-deep))]/70 backdrop-blur-sm border border-white/10 text-xs text-[hsl(var(--text-secondary))]">
+                  <p>Interactive map view • AI real-time matching</p>
+                </div>
               </div>
             </GlassCard>
 

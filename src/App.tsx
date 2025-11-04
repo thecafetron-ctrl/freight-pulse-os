@@ -10,6 +10,7 @@ import LoadMatching from "./pages/LoadMatching";
 import Documents from "./pages/Documents";
 import Forecasting from "./pages/Forecasting";
 import Analytics from "./pages/Analytics";
+import RoutePlanning from "./pages/RoutePlanning";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/documents" element={<Documents />} />
             <Route path="/forecasting" element={<Forecasting />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/route-planning" element={<RoutePlanning />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
