@@ -3,20 +3,22 @@ import { GlassCard } from "@/components/GlassCard";
 import { GlowButton } from "@/components/GlowButton";
 import { MapPin, Truck, Package, Plane, Ship, Loader2, Plus } from "lucide-react";
 import { AddLoadDialog } from "@/components/AddLoadDialog";
-import { EarthMap } from "@/components/EarthMap";
+import { FuturisticEarthMap } from "@/components/FuturisticEarthMap";
 import { VehiclesPanel } from "@/components/VehiclesPanel";
+import { AddVehicleDialog } from "@/components/AddVehicleDialog";
 import { extendedMockLoads, extendedMockVehicles } from "@/data/extendedMockData";
 import type { Load, Vehicle, Match, MatchApiResponse } from "@/types/loadMatching";
 
 const LoadMatching = () => {
   const [loads, setLoads] = useState<Load[]>(extendedMockLoads);
-  const [vehicles] = useState<Vehicle[]>(extendedMockVehicles);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(extendedMockVehicles);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
   const [showAddLoad, setShowAddLoad] = useState(false);
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   // Get vehicle icon
@@ -35,6 +37,7 @@ const LoadMatching = () => {
 
   // Generate all matches
   const generateMatches = async () => {
+    setMatches([]); // Clear old matches first
     setLoading(true);
     setError(null);
     setSelectedLoad(null);
@@ -60,6 +63,7 @@ const LoadMatching = () => {
 
   // Find matches for specific load
   const findMatchesForLoad = async (load: Load) => {
+    setMatches([]); // Clear old matches first
     setLoading(true);
     setError(null);
     setSelectedLoad(load);
@@ -92,8 +96,31 @@ const LoadMatching = () => {
     setLoads([...loads, newLoad]);
   };
 
+  const getNextVehicleId = () => {
+    const trucks = vehicles.filter(v => v.vehicleType === 'Truck');
+    const planes = vehicles.filter(v => v.vehicleType === 'Plane');
+    const ships = vehicles.filter(v => v.vehicleType === 'Ship');
+    
+    const maxT = Math.max(...trucks.map(v => parseInt(v.id.substring(1)) || 0), 0);
+    const maxP = Math.max(...planes.map(v => parseInt(v.id.substring(1)) || 0), 0);
+    const maxS = Math.max(...ships.map(v => parseInt(v.id.substring(1)) || 0), 0);
+    
+    return `T${maxT + 1}`; // Default to truck, will be updated based on selection
+  };
+
+  const handleAddVehicle = (newVehicle: Vehicle) => {
+    // Update ID based on vehicle type
+    const prefix = newVehicle.vehicleType === 'Plane' ? 'P' : newVehicle.vehicleType === 'Ship' ? 'S' : 'T';
+    const filtered = vehicles.filter(v => v.id.startsWith(prefix));
+    const maxNum = Math.max(...filtered.map(v => parseInt(v.id.substring(1)) || 0), 0);
+    newVehicle.id = `${prefix}${maxNum + 1}`;
+    
+    setVehicles([...vehicles, newVehicle]);
+  };
+
   // Find loads for specific vehicle (REVERSE matching)
   const findLoadsForVehicle = async (vehicle: Vehicle) => {
+    setMatches([]); // Clear old matches first
     setLoading(true);
     setError(null);
     setSelectedLoad(null);
@@ -209,7 +236,7 @@ const LoadMatching = () => {
                 </div>
 
             <div className="relative h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-[#0a1628] via-[#1a2742] to-[#0f1929]">
-              <EarthMap vehicles={vehicles} loads={loads} matches={matches} />
+              <FuturisticEarthMap vehicles={vehicles} loads={loads} matches={matches} />
               </div>
             </GlassCard>
 
@@ -297,11 +324,28 @@ const LoadMatching = () => {
         </div>
 
         {/* Vehicles Panel (Below) */}
-        <VehiclesPanel vehicles={vehicles} onFindLoads={findLoadsForVehicle} />
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <VehiclesPanel vehicles={vehicles} onFindLoads={findLoadsForVehicle} />
+          </div>
+          <button
+            onClick={() => setShowAddVehicle(true)}
+            className="px-6 py-3 rounded-xl bg-[hsl(var(--orange-glow))]/20 hover:bg-[hsl(var(--orange-glow))]/30 border border-[hsl(var(--orange-glow))]/50 transition-all shadow-[0_0_20px_rgba(255,122,0,0.2)] hover:shadow-[0_0_30px_rgba(255,122,0,0.4)]"
+            title="Add Vehicle"
+          >
+            <div className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-[hsl(var(--orange-glow))]" />
+              <span className="text-[hsl(var(--orange-glow))] font-semibold">Add Vehicle</span>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Add Load Dialog */}
       <AddLoadDialog open={showAddLoad} onOpenChange={setShowAddLoad} onAdd={handleAddLoad} nextId={getNextLoadId()} />
+      
+      {/* Add Vehicle Dialog */}
+      <AddVehicleDialog open={showAddVehicle} onOpenChange={setShowAddVehicle} onAdd={handleAddVehicle} nextId={getNextVehicleId()} />
     </div>
   );
 };
