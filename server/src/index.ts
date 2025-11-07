@@ -14,6 +14,7 @@ dotenv.config();
 
 import matchRouter from './routes/match';
 import findLoadsRouter from './routes/findLoads';
+import routePlannerRouter from './routes/routePlanner';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -44,6 +45,7 @@ app.get('/health', (req, res) => {
  */
 app.use('/api/match', matchRouter);
 app.use('/api/find-loads', findLoadsRouter);
+app.use('/api/route', routePlannerRouter);
 
 /**
  * Error Handler
@@ -62,6 +64,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 app.listen(PORT, () => {
   console.log(`\n🚛 LoadMatch AI Server running on http://localhost:${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🤖 Match API: http://localhost:${PORT}/api/match\n`);
+  console.log(`🤖 Match API: http://localhost:${PORT}/api/match`);
+  console.log(`🗺️ Route Planner API: http://localhost:${PORT}/api/route/optimize\n`);
 });
 

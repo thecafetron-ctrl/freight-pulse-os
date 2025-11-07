@@ -58,6 +58,8 @@ npm install
 # Set up environment variables
 cp .env.example .env
 # Add your OpenAI API key to .env
+# Route planner API base (optional)
+echo "VITE_API_BASE_URL=http://localhost:3001" >> .env
 
 # Start both frontend and backend
 npm run dev
