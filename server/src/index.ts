@@ -21,6 +21,7 @@ import accuracyRouter from './routes/accuracy';
 import alertsRouter from './routes/alerts';
 import customRouteRouter from './routes/customRoute';
 import forecastChatRouter from './routes/forecastChat';
+import documentsRouter from './routes/documents';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -58,6 +59,7 @@ app.use('/api/accuracy', accuracyRouter);
 app.use('/api/alerts', alertsRouter);
 app.use('/api/custom-route', customRouteRouter);
 app.use('/api/forecast/chat', forecastChatRouter);
+app.use('/api/documents', documentsRouter);
 
 /**
  * Error Handler
@@ -88,4 +90,3 @@ app.listen(PORT, () => {
   console.log(`🧭 Custom Route API:     http://localhost:${PORT}/api/custom-route`);
   console.log(`💬 Forecast Chat API:    http://localhost:${PORT}/api/forecast/chat\n`);
 });
-
