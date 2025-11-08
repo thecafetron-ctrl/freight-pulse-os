@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import jsPDF from "jspdf";
 import RoutePlannerMap from "@/components/RoutePlannerMap";
 import { GlassCard } from "@/components/GlassCard";
@@ -27,6 +27,22 @@ import type { MapStop } from "@/components/RoutePlannerMap";
 
 const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const integerFormatter = new Intl.NumberFormat("en-US");
+const compactFormatter = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
+
+const formatLargeNumber = (value: number) => {
+  if (!Number.isFinite(value)) return "—";
+  const absValue = Math.abs(value);
+  if (absValue === 0) return "0";
+  if (absValue >= 1000) {
+    return compactFormatter.format(value);
+  }
+  return numberFormatter.format(value);
+};
+
+const formatPercent = (value: number | null) => {
+  if (value === null || !Number.isFinite(value)) return "—";
+  return `${value >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(value))}%`;
+};
 
 const strategyOptions = [
   { id: "fastest" as const, label: "Fastest", description: "Minimize travel time", icon: "⚡" },
@@ -151,6 +167,11 @@ const RoutePlanning = () => {
   const [isGeocodingOrigin, setIsGeocodingOrigin] = useState(false);
   const [geocodingStops, setGeocodingStops] = useState<Record<string, boolean>>({});
 
+  const originGeocodeTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastOriginQueryRef = useRef<string>(origin.name);
+  const stopGeocodeTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const lastStopQueryRef = useRef<Record<string, string>>({});
+
   const addStop = () => {
     setStops((prev) => [
       ...prev,
@@ -191,49 +212,54 @@ const RoutePlanning = () => {
     return data.location;
   }, []);
 
-  const handleGeocodeOrigin = useCallback(async () => {
+  const performOriginGeocode = useCallback(
+    async (query: string) => {
+      if (!query.trim()) return;
+      setIsGeocodingOrigin(true);
+      try {
+        const location = await geocodeLocation(query);
+        lastOriginQueryRef.current = location.formatted ?? location.name ?? query;
+        setOrigin((prev) => ({
+          ...prev,
+          name: location.formatted ?? location.name ?? prev.name,
+          lat: location.lat,
+          lng: location.lng,
+        }));
+        resetErrors();
+      } catch (err) {
+        const apiError = err as ApiError;
+        setError(apiError.error ?? "Unable to locate that origin. Please add coordinates manually.");
+        setErrorReasoning(apiError.reasoning ?? null);
+        setRecommendation([]);
+      } finally {
+        setIsGeocodingOrigin(false);
+      }
+    },
+    [geocodeLocation],
+  );
+
+  const handleGeocodeOrigin = useCallback(() => {
     if (!origin.name.trim()) {
       setError("Enter an origin description before using AI coordinates.");
       setErrorReasoning(null);
       setRecommendation([]);
       return;
     }
+    performOriginGeocode(origin.name);
+  }, [origin.name, performOriginGeocode]);
 
-    setIsGeocodingOrigin(true);
-    try {
-      const location = await geocodeLocation(origin.name);
-      setOrigin((prev) => ({
-        ...prev,
-        name: location.formatted ?? location.name ?? prev.name,
-        lat: location.lat,
-        lng: location.lng,
-      }));
-      resetErrors();
-    } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.error ?? "Unable to locate that origin. Please add coordinates manually.");
-      setErrorReasoning(apiError.reasoning ?? null);
-      setRecommendation([]);
-    } finally {
-      setIsGeocodingOrigin(false);
-    }
-  }, [geocodeLocation, origin.name]);
-
-  const handleGeocodeStop = useCallback(
-    async (stopId: string) => {
+  const performStopGeocode = useCallback(
+    async (stopId: string, query: string) => {
+      if (!query.trim()) return;
       const target = stops.find((stop) => stop.id === stopId);
       if (!target) return;
-
-      if (!target.name.trim()) {
-        setError("Add a location name before using AI coordinates for this stop.");
-        setErrorReasoning(null);
-        setRecommendation([]);
-        return;
-      }
-
       setGeocodingStops((prev) => ({ ...prev, [stopId]: true }));
       try {
-        const location = await geocodeLocation(target.name);
+        const location = await geocodeLocation(query);
+        lastStopQueryRef.current = {
+          ...lastStopQueryRef.current,
+          [stopId]: location.formatted ?? location.name ?? query,
+        };
         setStops((prev) =>
           prev.map((stop) =>
             stop.id === stopId
@@ -262,6 +288,50 @@ const RoutePlanning = () => {
     [geocodeLocation, stops],
   );
 
+  const handleGeocodeStop = useCallback(
+    (stopId: string) => {
+      const target = stops.find((stop) => stop.id === stopId);
+      if (!target || !target.name.trim()) {
+        setError("Add a location name before using AI coordinates for this stop.");
+        setErrorReasoning(null);
+        setRecommendation([]);
+        return;
+      }
+      performStopGeocode(stopId, target.name);
+    },
+    [performStopGeocode, stops],
+  );
+
+  const scheduleOriginGeocode = useCallback(
+    (value: string) => {
+      if (originGeocodeTimer.current) {
+        clearTimeout(originGeocodeTimer.current);
+      }
+      const trimmed = value.trim();
+      if (trimmed.length < 3) return;
+      originGeocodeTimer.current = setTimeout(() => {
+        if (trimmed === lastOriginQueryRef.current) return;
+        performOriginGeocode(trimmed);
+      }, 700);
+    },
+    [performOriginGeocode],
+  );
+
+  const scheduleStopGeocode = useCallback(
+    (stopId: string, value: string) => {
+      if (stopGeocodeTimersRef.current[stopId]) {
+        clearTimeout(stopGeocodeTimersRef.current[stopId]);
+      }
+      const trimmed = value.trim();
+      if (trimmed.length < 3) return;
+      stopGeocodeTimersRef.current[stopId] = setTimeout(() => {
+        if (trimmed === lastStopQueryRef.current[stopId]) return;
+        performStopGeocode(stopId, trimmed);
+      }, 700);
+    },
+    [performStopGeocode],
+  );
+
   const handleGenerate = async () => {
     if (stops.length < 1) {
       setError("Please provide at least one stop to optimize a route.");
@@ -275,7 +345,6 @@ const RoutePlanning = () => {
 
     try {
       let nextOrigin = origin;
-
       if ((!origin.lat || !origin.lng) && origin.name.trim()) {
         const location = await geocodeLocation(origin.name);
         nextOrigin = {
@@ -539,7 +608,11 @@ const RoutePlanning = () => {
                 </div>
                 <Input
                   value={origin.name}
-                  onChange={(e) => setOrigin((prev) => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setOrigin((prev) => ({ ...prev, name: nextValue }));
+                    scheduleOriginGeocode(nextValue);
+                  }}
                   placeholder="Origin name"
                   className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
                 />
@@ -600,7 +673,11 @@ const RoutePlanning = () => {
                         </div>
                         <Input
                           value={stop.name}
-                          onChange={(e) => updateStopValue(stop.id, "name", e.target.value)}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            updateStopValue(stop.id, "name", nextValue);
+                            scheduleStopGeocode(stop.id, nextValue);
+                          }}
                           placeholder="Stop name"
                           className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
                         />
@@ -828,19 +905,19 @@ const RoutePlanning = () => {
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">Cost / kg</p>
                         <p className="text-white font-semibold break-all">
-                          ${numberFormatter.format(result.optimizedRoute.costPerKgUSD)}
+                          ${formatLargeNumber(result.optimizedRoute.costPerKgUSD)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">Fuel cost</p>
                         <p className="text-white font-semibold break-all">
-                          ${numberFormatter.format(result.optimizedRoute.fuelCostUSD)}
+                          ${formatLargeNumber(result.optimizedRoute.fuelCostUSD)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">CO₂ emitted</p>
                         <p className="text-white font-semibold break-all">
-                          {numberFormatter.format(result.optimizedRoute.co2Kg)} kg
+                          {formatLargeNumber(result.optimizedRoute.co2Kg)} kg
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
@@ -879,9 +956,7 @@ const RoutePlanning = () => {
                                 : "text-red-400"
                           }`}
                         >
-                          {card.percent === null
-                            ? "—"
-                            : `${card.percent >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(card.percent))}%`}
+                          {formatPercent(card.percent)}
                         </span>
                         <span className="text-white/80 break-all">{card.percentLabel}</span>
                       </div>
@@ -927,7 +1002,7 @@ const RoutePlanning = () => {
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>Total Distance</p>
                   <p className="text-white text-lg font-semibold break-all">
-                    {numberFormatter.format(result.optimizedRoute.totalDistanceKm)} km
+                    {formatLargeNumber(result.optimizedRoute.totalDistanceKm)} km
                   </p>
                 </div>
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
@@ -939,13 +1014,19 @@ const RoutePlanning = () => {
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>Fuel Used</p>
                   <p className="text-white text-lg font-semibold break-all">
-                    {numberFormatter.format(result.optimizedRoute.fuelUsedLiters)} L
+                    {formatLargeNumber(result.optimizedRoute.fuelUsedLiters)} L
                   </p>
                 </div>
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>CO₂ Output</p>
                   <p className="text-white text-lg font-semibold break-all">
-                    {numberFormatter.format(result.optimizedRoute.co2Kg)} kg
+                    {formatLargeNumber(result.optimizedRoute.co2Kg)} kg
+                  </p>
+                </div>
+                <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+                  <p>Est. Arrival</p>
+                  <p className="text-white text-sm font-semibold break-all">
+                    {estimatedArrival}
                   </p>
                 </div>
               </div>
