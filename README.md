@@ -121,6 +121,17 @@ npm run build        # Build for production
 npm run preview      # Preview production build
 ```
 
+### Deploy to Netlify
+```bash
+# Build static assets + serverless function
+npm run build
+```
+
+- **Publish directory**: `dist`
+- **Functions directory**: `netlify/functions`
+- **Environment variables** (set in Netlify UI): `OPENAI_API_KEY`, plus any optional API keys
+- The Express backend is bundled as `/.netlify/functions/server/*`; the frontend automatically targets this path in production.
+
 ### Utilities
 ```bash
 npm run install:all  # Install all dependencies

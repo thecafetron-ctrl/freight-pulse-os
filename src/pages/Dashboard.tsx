@@ -1,112 +1,498 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
+
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowUpRight, TrendingUp, Package, DollarSign, Clock } from "lucide-react";
+import { getJson } from "@/lib/api";
+import type {
+  DashboardSnapshot,
+  DashboardSystemStatus,
+  InsightAnomaly,
+} from "@/types/analytics";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
+  Clock,
+  DollarSign,
+  Info,
+  Loader2,
+  Package,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+
+interface DashboardResponse {
+  success: boolean;
+  data: DashboardSnapshot;
+}
+
+const statusIconMap: Record<
+  DashboardSystemStatus["status"],
+  { color: string; icon: JSX.Element }
+> = {
+  operational: {
+    color: "text-green-400",
+    icon: <CheckCircle2 className="w-4 h-4 text-green-400" />,
+  },
+  degraded: {
+    color: "text-yellow-300",
+    icon: <AlertTriangle className="w-4 h-4 text-yellow-300" />,
+  },
+  offline: {
+    color: "text-red-400",
+    icon: <AlertTriangle className="w-4 h-4 text-red-400" />,
+  },
+};
+
+const severityColorMap: Record<InsightAnomaly["severity"], string> = {
+  low: "text-emerald-300",
+  medium: "text-yellow-300",
+  high: "text-red-400",
+};
 
 const Dashboard = () => {
-  const stats = [
-    { label: "Active Shipments", value: "247", change: "+12%", icon: Package, color: "orange" },
-    { label: "Quote Requests", value: "89", change: "+8%", icon: DollarSign, color: "cyan" },
-    { label: "Match Rate", value: "94%", change: "+3%", icon: TrendingUp, color: "orange" },
-    { label: "Avg Response Time", value: "2.3m", change: "-15%", icon: Clock, color: "cyan" },
-  ];
+  const [data, setData] = useState<DashboardSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  return (
-    <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
-      <div className="max-w-[1800px] mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="space-y-2 animate-fade-in">
-          <h1 className="text-4xl font-bold text-white">Operations Dashboard</h1>
-          <p className="text-[hsl(var(--text-secondary))]">Real-time overview of your AI-powered logistics platform</p>
+  const fetchSnapshot = useCallback(async (silent = false) => {
+    try {
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      const payload = await getJson<DashboardResponse>("/api/insights/dashboard");
+      if (!payload.success) {
+        throw new Error("Failed to load dashboard data");
+      }
+
+      setData(payload.data);
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unexpected error loading dashboard";
+      setError(message);
+    } finally {
+      if (silent) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSnapshot();
+  }, [fetchSnapshot]);
+
+  useEffect(() => {
+    if (!data) {
+      return undefined;
+    }
+    const interval = setInterval(() => {
+      fetchSnapshot(true);
+    }, 60_000);
+
+    return () => clearInterval(interval);
+  }, [data, fetchSnapshot]);
+
+  const averageLaneChange = useMemo(() => {
+    if (!data || data.laneHighlights.length === 0) {
+      return 0;
+    }
+    const total = data.laneHighlights.reduce((sum, lane) => sum + lane.changePercent, 0);
+    return total / data.laneHighlights.length;
+  }, [data]);
+
+  const statsCards = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    const cards = [
+      {
+        label: "Active Shipments",
+        value: data.stats.activeShipments.toLocaleString(),
+        delta: averageLaneChange,
+        invert: false,
+        icon: Package,
+        glow: "orange" as const,
+      },
+      {
+        label: "Quote Requests",
+        value: data.stats.quoteRequests.toLocaleString(),
+        delta: averageLaneChange * 0.8,
+        invert: false,
+        icon: DollarSign,
+        glow: "cyan" as const,
+      },
+      {
+        label: "Match Rate",
+        value: `${data.stats.matchRate.toFixed(1)}%`,
+        delta: data.stats.matchRate - 92,
+        invert: false,
+        icon: TrendingUp,
+        glow: "orange" as const,
+      },
+      {
+        label: "Avg Response Time",
+        value: `${data.stats.avgResponseTimeMinutes.toFixed(1)}m`,
+        delta: data.stats.avgResponseTimeMinutes - 2.6,
+        invert: true,
+        icon: Clock,
+        glow: "cyan" as const,
+      },
+    ];
+
+    return cards.map((card) => {
+      const isPositive = card.invert ? card.delta <= 0 : card.delta >= 0;
+      const trendLabel = `${isPositive ? "+" : ""}${card.delta.toFixed(1)}%`;
+      return { ...card, isPositive, trendLabel };
+    });
+  }, [data, averageLaneChange]);
+
+  const lastUpdated = data
+    ? formatDistanceToNow(new Date(data.updatedAt), { addSuffix: true })
+    : null;
+
+  const renderContent = () => {
+    if (loading && !data) {
+      return (
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="w-6 h-6 text-white animate-spin" />
         </div>
+      );
+    }
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
-          {stats.map((stat, index) => (
-            <GlassCard 
-              key={stat.label} 
-              glow={stat.color as "orange" | "cyan"}
-              className="animate-slide-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
+    if (error && !data) {
+      return (
+        <GlassCard glow="orange" className="text-center py-16">
+          <div className="flex flex-col items-center gap-4">
+            <AlertTriangle className="w-8 h-8 text-red-400" />
+            <div>
+              <h2 className="text-xl font-semibold text-white">Unable to load dashboard</h2>
+              <p className="text-sm text-[hsl(var(--text-secondary))] mt-2">{error}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchSnapshot()}
+              className="px-4 py-2 rounded-lg bg-[hsl(var(--orange-glow))] text-white font-medium hover:opacity-90 transition"
             >
-              <div className="flex items-start justify-between">
+              Retry
+            </button>
+          </div>
+        </GlassCard>
+      );
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return (
+      <>
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {statsCards.map((card, index) => (
+            <GlassCard
+              key={card.label}
+              glow={card.glow}
+              className="animate-slide-in"
+              style={{ animationDelay: `${index * 0.07}s` }}
+            >
+              <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
-                  <p className="text-sm text-[hsl(var(--text-secondary))]">{stat.label}</p>
-                  <p className="text-3xl font-bold text-white">{stat.value}</p>
-                  <div className="flex items-center gap-1 text-sm">
-                    <ArrowUpRight className={`w-4 h-4 ${stat.change.startsWith('+') ? 'text-green-400' : 'text-green-400'}`} />
-                    <span className="text-green-400">{stat.change}</span>
+                  <p className="text-sm text-[hsl(var(--text-secondary))]">{card.label}</p>
+                  <p className="text-3xl font-semibold text-white">{card.value}</p>
+                  <div className="flex items-center gap-2 text-sm">
+                    {card.isPositive ? (
+                      <TrendingUp className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 text-red-400" />
+                    )}
+                    <span className={card.isPositive ? "text-green-400" : "text-red-400"}>
+                      {card.trendLabel}
+                    </span>
+                    <span className="text-[hsl(var(--text-secondary))]">vs baseline</span>
                   </div>
                 </div>
-                <div className={`p-3 rounded-xl ${stat.color === 'orange' ? 'bg-[hsl(var(--orange-glow))]/10' : 'bg-[hsl(var(--cyan-glow))]/10'}`}>
-                  <stat.icon className={`w-6 h-6 ${stat.color === 'orange' ? 'text-[hsl(var(--orange-glow))]' : 'text-[hsl(var(--cyan-glow))]'}`} />
+                <div
+                  className={`p-3 rounded-xl ${
+                    card.glow === "orange"
+                      ? "bg-[hsl(var(--orange-glow))]/10"
+                      : "bg-[hsl(var(--cyan-glow))]/10"
+                  }`}
+                >
+                  <card.icon
+                    className={`w-6 h-6 ${
+                      card.glow === "orange"
+                        ? "text-[hsl(var(--orange-glow))]"
+                        : "text-[hsl(var(--cyan-glow))]"
+                    }`}
+                  />
                 </div>
               </div>
             </GlassCard>
           ))}
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Activity */}
-          <GlassCard className="lg:col-span-2" glow="orange">
-            <h3 className="text-xl font-bold text-white mb-4">Recent Activity</h3>
-            <div className="space-y-3">
-              {[
-                { action: "New quote generated", detail: "Chicago → Dallas, 42,000 lbs", time: "2 min ago", status: "success" },
-                { action: "Load matched", detail: "Atlanta → Houston, Match: 97%", time: "5 min ago", status: "success" },
-                { action: "Document processed", detail: "BOL_Chicago_Dallas.pdf", time: "8 min ago", status: "success" },
-                { action: "AI forecast updated", detail: "Southeast corridor demand +18%", time: "12 min ago", status: "info" },
-              ].map((activity, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300"
-                >
-                  <div className="space-y-1">
-                    <p className="text-white font-medium">{activity.action}</p>
-                    <p className="text-sm text-[hsl(var(--text-secondary))]">{activity.detail}</p>
-                  </div>
-                  <span className="text-xs text-[hsl(var(--text-secondary))]">{activity.time}</span>
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-6">
+          <GlassCard glow="orange" className="2xl:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-white">Recent Activity</h3>
+                <p className="text-sm text-[hsl(var(--text-secondary))]">
+                  Latest signals across load matching, quoting, and forecasting
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-[hsl(var(--text-secondary))]">
+                <span>Auto-refreshing</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  <span>{lastUpdated}</span>
                 </div>
-              ))}
+              </div>
+            </div>
+            <div className="space-y-3">
+              {data.recentActivity.map((activity) => {
+                const Icon =
+                  activity.status === "success"
+                    ? CheckCircle2
+                    : activity.status === "warning"
+                    ? AlertTriangle
+                    : Info;
+                const color =
+                  activity.status === "success"
+                    ? "text-emerald-300"
+                    : activity.status === "warning"
+                    ? "text-yellow-300"
+                    : "text-cyan-300";
+
+                return (
+                  <div
+                    key={activity.id}
+                    className="flex items-center justify-between gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 ${color}`} />
+                      <div>
+                        <p className="text-sm font-medium text-white">{activity.action}</p>
+                        <p className="text-xs text-[hsl(var(--text-secondary))]">
+                          {activity.detail}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-[hsl(var(--text-secondary))]">
+                      {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </GlassCard>
 
-          {/* Quick Actions */}
-          <GlassCard glow="cyan">
-            <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
+          <GlassCard glow="cyan" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-white">Quick Actions</h3>
+              <button
+                type="button"
+                onClick={() => fetchSnapshot(true)}
+                className="flex items-center gap-2 text-xs text-[hsl(var(--cyan-glow))] hover:text-white transition"
+              >
+                {refreshing ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3 h-3" />
+                )}
+                Refresh
+              </button>
+            </div>
             <div className="space-y-3">
-              <button className="w-full p-4 rounded-xl bg-gradient-to-r from-[hsl(var(--orange-glow))] to-[hsl(var(--orange-bright))] text-white font-semibold hover:shadow-[0_0_30px_rgba(255,122,0,0.4)] transition-all duration-300 hover:scale-105">
+              <Link
+                to="/quotes"
+                className="group block w-full p-4 rounded-xl bg-gradient-to-r from-[hsl(var(--orange-glow))] to-[hsl(var(--orange-bright))] text-white font-semibold transition duration-300 hover:shadow-[0_0_30px_rgba(255,122,0,0.45)] hover:scale-[1.01]"
+              >
                 Generate Quote
-              </button>
-              <button className="w-full p-4 rounded-xl border-2 border-[hsl(var(--cyan-glow))] text-[hsl(var(--cyan-glow))] font-semibold hover:bg-[hsl(var(--cyan-glow))] hover:text-[hsl(var(--navy-deep))] transition-all duration-300">
+                <ArrowUpRight className="inline-block w-4 h-4 ml-2 transition group-hover:translate-x-1" />
+              </Link>
+              <Link
+                to="/load-matching"
+                className="block w-full p-4 rounded-xl border-2 border-[hsl(var(--cyan-glow))] text-[hsl(var(--cyan-glow))] font-semibold transition duration-300 hover:bg-[hsl(var(--cyan-glow))] hover:text-[hsl(var(--navy-deep))]"
+              >
                 Find Matches
-              </button>
-              <button className="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all duration-300">
+              </Link>
+              <Link
+                to="/documents"
+                className="block w-full p-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold transition duration-300 hover:bg-white/10"
+              >
                 Upload Document
-              </button>
-              <button className="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all duration-300">
+              </Link>
+              <Link
+                to="/analytics"
+                className="block w-full p-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold transition duration-300 hover:bg-white/10"
+              >
                 View Analytics
-              </button>
+              </Link>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-[hsl(var(--text-secondary))]">Fleet Utilization</p>
+                <span className="text-sm font-semibold text-white">
+                  {data.utilization.utilizationPercent.toFixed(1)}%
+                </span>
+              </div>
+              <div className="h-3 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[hsl(var(--cyan-glow))] to-[hsl(var(--orange-glow))]"
+                  style={{ width: `${Math.min(100, data.utilization.utilizationPercent)}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs text-[hsl(var(--text-secondary))]">
+                <span>{data.utilization.availableVehicles} total assets</span>
+                <span>{data.utilization.idleVehicles} idle capacity</span>
+              </div>
             </div>
           </GlassCard>
         </div>
 
-        {/* System Status */}
-        <GlassCard glow="orange">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-white mb-2">AI Systems Status</h3>
-              <p className="text-sm text-[hsl(var(--text-secondary))]">All systems operational</p>
+        {/* Lane performance & Alerts */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <GlassCard glow="orange" className="xl:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white">Lane Performance</h3>
+              <span className="text-xs text-[hsl(var(--text-secondary))]">
+                Top {data.laneHighlights.length} monitored lanes
+              </span>
             </div>
-            <div className="flex items-center gap-6">
-              {["Quote Engine", "Load Matcher", "Document AI", "Forecasting"].map((system) => (
-                <div key={system} className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-sm text-[hsl(var(--text-secondary))]">{system}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {data.laneHighlights.map((lane) => (
+                <div
+                  key={lane.lane}
+                  className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-2 hover:bg-white/10 transition"
+                >
+                  <p className="text-sm font-semibold text-white">{lane.lane}</p>
+                  <div className="flex items-center justify-between text-sm text-[hsl(var(--text-secondary))]">
+                    <span>{lane.weeklyLoads.toLocaleString()} weekly loads</span>
+                    <span
+                      className={
+                        lane.changePercent > 0
+                          ? "text-green-400"
+                          : lane.changePercent < 0
+                          ? "text-red-400"
+                          : "text-[hsl(var(--text-secondary))]"
+                      }
+                    >
+                      {lane.changePercent >= 0 ? "+" : ""}
+                      {lane.changePercent}%
+                    </span>
+                  </div>
+                  <div className="text-xs text-[hsl(var(--text-secondary))]">
+                    Trend:{" "}
+                    <span className="font-medium text-white capitalize">{lane.trend}</span>
+                  </div>
                 </div>
               ))}
             </div>
+          </GlassCard>
+
+          <GlassCard glow="cyan" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-white">AI Alerts</h3>
+              <span className="text-xs text-[hsl(var(--text-secondary))]">
+                {data.alerts.count} detected
+              </span>
+            </div>
+            {data.alerts.topAlerts.length === 0 ? (
+              <p className="text-sm text-[hsl(var(--text-secondary))]">
+                No anomalies detected in the latest forecast horizon.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {data.alerts.topAlerts.map((alert) => (
+                  <div
+                    key={`${alert.lane}-${alert.type}`}
+                    className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-white">{alert.lane}</p>
+                      <span className={`text-xs font-medium ${severityColorMap[alert.severity]}`}>
+                        {alert.severity.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[hsl(var(--text-secondary))]">{alert.message}</p>
+                    <span className="text-xs text-[hsl(var(--text-secondary))]">
+                      Change: {alert.percentChange >= 0 ? "+" : ""}
+                      {alert.percentChange.toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+        </div>
+
+        {/* System status */}
+        <GlassCard glow="orange">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white">AI Systems Status</h3>
+            <div className="flex items-center gap-2 text-xs text-[hsl(var(--text-secondary))]">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span>Real-time monitoring active</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {data.systemStatus.map((system) => {
+              const statusMeta = statusIconMap[system.status];
+              return (
+                <div
+                  key={system.system}
+                  className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-3 hover:bg-white/10 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-white">{system.system}</p>
+                    <span className={`flex items-center gap-1 text-xs ${statusMeta.color}`}>
+                      {statusMeta.icon}
+                      <span className="uppercase tracking-wide">{system.status}</span>
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-xs text-[hsl(var(--text-secondary))]">
+                    <p>Latency: {system.latencyMs} ms</p>
+                    <p>Throughput: {system.throughputPerMinute} / min</p>
+                    <p>Uptime: {system.uptimePercent.toFixed(2)}%</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </GlassCard>
+      </>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
+      <div className="max-w-[1800px] mx-auto p-6 space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-white">Operations Dashboard</h1>
+            <p className="text-[hsl(var(--text-secondary))]">
+              Real-time overview of AI-powered logistics performance
+            </p>
+          </div>
+          {data && (
+            <div className="flex items-center gap-2 text-xs text-[hsl(var(--text-secondary))]">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span>Last updated {lastUpdated}</span>
+            </div>
+          )}
+        </div>
+
+        {renderContent()}
       </div>
     </div>
   );
