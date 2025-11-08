@@ -47,7 +47,7 @@ const formatPercent = (value: number | null) => {
 const strategyOptions = [
   { id: "fastest" as const, label: "Fastest", description: "Minimize travel time", icon: "⚡" },
   { id: "cheapest" as const, label: "Cheapest", description: "Minimize trip spend", icon: "💰" },
-  { id: "ai" as const, label: "AI Optimized", description: "Balanced demo output", icon: "🤖" },
+  { id: "ai" as const, label: "AI Optimized", description: "Balanced optimization", icon: "🤖" },
 ];
 
 const transportOptions = [
@@ -72,8 +72,6 @@ interface RouteMetrics {
   fuelCostUSD: number;
   co2Kg: number;
   fuelEfficiencyKmPerL: number;
-  containersRequired: number;
-  costPerContainerUSD: number;
 }
 
 interface OptimizationResponse {
@@ -110,7 +108,6 @@ interface OptimizationResponse {
       co2Kg: number;
       fuelEfficiencyKmPerL: number;
       fuelEfficiencyPercent: number;
-      costPerContainerUSD: number;
     };
   };
 }
@@ -425,7 +422,6 @@ const RoutePlanning = () => {
     addLine(`Strategy: ${result.optimizedRoute.strategy}`);
     addLine(`Transport Mode: ${result.optimizedRoute.transportMode}`);
     addLine(`Cargo Weight: ${integerFormatter.format(result.optimizedRoute.weightKg)} kg`);
-    addLine(`Containers Required: ${integerFormatter.format(result.optimizedRoute.containersRequired)}`);
     addLine(`Estimated Arrival: ${new Date(result.optimizedRoute.estimatedArrivalIso).toLocaleString()}`);
 
     currentHeight += 4;
@@ -437,7 +433,6 @@ const RoutePlanning = () => {
     addLine(`Estimated Time: ${numberFormatter.format(result.optimizedRoute.estimatedTimeHr)} hr`);
     addLine(`Total Cost: $${numberFormatter.format(result.optimizedRoute.totalCostUSD)}`);
     addLine(`Cost / kg: $${numberFormatter.format(result.optimizedRoute.costPerKgUSD)}`);
-    addLine(`Cost / container: $${numberFormatter.format(result.optimizedRoute.costPerContainerUSD)}`);
     addLine(`Fuel Used: ${numberFormatter.format(result.optimizedRoute.fuelUsedLiters)} L`);
     addLine(`CO₂ Emitted: ${numberFormatter.format(result.optimizedRoute.co2Kg)} kg`);
 
@@ -465,10 +460,9 @@ const RoutePlanning = () => {
       `Transport Mode: ${result.optimizedRoute.transportMode}`,
       `Stops: ${result.optimizedRoute.order.join(" ➜ ")}`,
       `ETA: ${new Date(result.optimizedRoute.estimatedArrivalIso).toLocaleString()}`,
-      `Containers: ${integerFormatter.format(result.optimizedRoute.containersRequired)}`,
     ].join("\n");
 
-    window.alert(`${message}\n\n(This is a demo hand-off — integrate with your dispatch system here.)`);
+    window.alert(`${message}\n\n(Integrate with your dispatch system here.)`);
   }, [result]);
 
   const comparisonCards = useMemo(() => {
@@ -548,24 +542,6 @@ const RoutePlanning = () => {
           Math.abs(improvements.fuelEfficiencyKmPerL),
         )} km/L`,
       },
-      {
-        label: "Cost / container",
-        original: `$${numberFormatter.format(naive.costPerContainerUSD)}`,
-        optimized: `$${numberFormatter.format(optimized.costPerContainerUSD)}`,
-        percent: improvements.costPerContainerUSD,
-        percentLabel: `${improvements.costPerContainerUSD >= 0 ? "-" : "+"}$${numberFormatter.format(
-          Math.abs(improvements.costPerContainerUSD),
-        )}`,
-      },
-      {
-        label: "Containers Required",
-        original: integerFormatter.format(naive.containersRequired),
-        optimized: integerFormatter.format(optimized.containersRequired),
-        percent: null,
-        percentLabel: `${optimized.containersRequired - naive.containersRequired >= 0 ? "+" : "-"}${integerFormatter.format(
-          Math.abs(optimized.containersRequired - naive.containersRequired),
-        )}`,
-      },
     ];
   }, [result]);
 
@@ -590,7 +566,6 @@ const RoutePlanning = () => {
           <GlassCard glow="cyan" className="space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-white">Route Inputs</h3>
-              <span className="text-xs text-[hsl(var(--text-secondary))]">All values are demo-friendly</span>
             </div>
 
             <div className="space-y-4">
@@ -820,7 +795,7 @@ const RoutePlanning = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <GlassCard glow="orange" className="bg-white/5 border border-white/10">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Total Trip Cost</p>
                 <p className="text-2xl font-semibold text-white break-all">
@@ -859,20 +834,6 @@ const RoutePlanning = () => {
                   {result ? `${numberFormatter.format(result.optimizedRoute.fuelUsedLiters)} L` : "—"}
                 </p>
               </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs text-[hsl(var(--text-secondary))]">Cost / Container</p>
-                <p className="text-lg font-semibold text-white break-all">
-                  {result ? `$${numberFormatter.format(result.optimizedRoute.costPerContainerUSD)}` : "—"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs text-[hsl(var(--text-secondary))]">Containers Needed</p>
-                <p className="text-lg font-semibold text-white break-all">
-                  {result ? integerFormatter.format(result.optimizedRoute.containersRequired) : "—"}
-                </p>
-              </div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -890,15 +851,12 @@ const RoutePlanning = () => {
                       {result ? result.optimizedRoute.transportIcon : "🚚"}
                       {result ? result.optimizedRoute.transportMode : transportOptions.find((o) => o.id === transport)?.label}
                     </span>
-                    <span className="text-sm text-[hsl(var(--text-secondary))]">
-                      {integerFormatter.format(weightKg)} kg cargo · {result ? integerFormatter.format(result.optimizedRoute.containersRequired) : "—"} container
-                      {result && result.optimizedRoute.containersRequired !== 1 ? "s" : ""}
-                    </span>
+                    <span className="text-sm text-[hsl(var(--text-secondary))]">{integerFormatter.format(weightKg)} kg cargo</span>
                   </div>
                   <p className="text-[hsl(var(--text-secondary))] text-sm leading-relaxed">
                     {result
                       ? result.optimizedRoute.reason
-                      : "Select stops, transport mode, and strategy to generate an optimized route with consistent demo metrics."}
+                      : "Select stops, transport mode, and strategy to generate an optimized route."}
                   </p>
                   {result && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
@@ -1052,7 +1010,7 @@ const RoutePlanning = () => {
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--orange-glow))] mt-1.5" />
-                  <p>AI balanced strategy keeps improvements believable for demo purposes.</p>
+                  <p>AI balanced strategy optimizes for efficiency and cost-effectiveness.</p>
                 </div>
               </div>
             </div>
@@ -1115,8 +1073,6 @@ const RoutePlanning = () => {
                 </div>
                 <p>Distance: {numberFormatter.format(result.comparison.naive.totalDistanceKm)} km</p>
                 <p>ETA: {numberFormatter.format(result.comparison.naive.totalTimeHr)} hr</p>
-                <p>Cost / container: ${numberFormatter.format(result.comparison.naive.costPerContainerUSD)}</p>
-                <p>Containers: {integerFormatter.format(result.comparison.naive.containersRequired)}</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                 <p className="text-xs uppercase tracking-wide">Optimized Route</p>
@@ -1126,8 +1082,6 @@ const RoutePlanning = () => {
                 </div>
                 <p>Distance: {numberFormatter.format(result.comparison.optimized.totalDistanceKm)} km</p>
                 <p>ETA: {numberFormatter.format(result.comparison.optimized.estimatedTimeHr)} hr</p>
-                <p>Cost / container: ${numberFormatter.format(result.comparison.optimized.costPerContainerUSD)}</p>
-                <p>Containers: {integerFormatter.format(result.comparison.optimized.containersRequired)}</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                 <p className="text-xs uppercase tracking-wide">Savings Snapshot</p>
@@ -1147,10 +1101,6 @@ const RoutePlanning = () => {
                 <p>
                   CO₂ Δ: {result.comparison.improvements.co2Kg >= 0 ? "-" : "+"}
                   {numberFormatter.format(Math.abs(result.comparison.improvements.co2Kg))} kg
-                </p>
-                <p>
-                  Cost / container Δ: {result.comparison.improvements.costPerContainerUSD >= 0 ? "-" : "+"}$
-                  {numberFormatter.format(Math.abs(result.comparison.improvements.costPerContainerUSD))}
                 </p>
               </div>
             </div>
