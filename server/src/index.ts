@@ -15,6 +15,12 @@ dotenv.config();
 import matchRouter from './routes/match';
 import findLoadsRouter from './routes/findLoads';
 import routePlannerRouter from './routes/routePlanner';
+import mockDataRouter from './routes/mockdata';
+import forecastRouter from './routes/forecast';
+import accuracyRouter from './routes/accuracy';
+import alertsRouter from './routes/alerts';
+import customRouteRouter from './routes/customRoute';
+import forecastChatRouter from './routes/forecastChat';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -46,14 +52,22 @@ app.get('/health', (req, res) => {
 app.use('/api/match', matchRouter);
 app.use('/api/find-loads', findLoadsRouter);
 app.use('/api/route', routePlannerRouter);
+app.use('/api/mockdata', mockDataRouter);
+app.use('/api/forecast', forecastRouter);
+app.use('/api/accuracy', accuracyRouter);
+app.use('/api/alerts', alertsRouter);
+app.use('/api/custom-route', customRouteRouter);
+app.use('/api/forecast/chat', forecastChatRouter);
 
 /**
  * Error Handler
  */
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = typeof err === 'object' && err !== null && 'status' in err ? (err as { status?: number }).status : undefined;
+  const message = err instanceof Error ? err.message : 'Internal server error';
   console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
+  res.status(status || 500).json({
+    error: message,
     timestamp: new Date().toISOString()
   });
 });
@@ -63,8 +77,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
  */
 app.listen(PORT, () => {
   console.log(`\n🚛 LoadMatch AI Server running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🤖 Match API: http://localhost:${PORT}/api/match`);
-  console.log(`🗺️ Route Planner API: http://localhost:${PORT}/api/route/optimize\n`);
+  console.log(`📊 Health check:         http://localhost:${PORT}/health`);
+  console.log(`🤖 Match API:            http://localhost:${PORT}/api/match`);
+  console.log(`📦 Find Loads API:       http://localhost:${PORT}/api/find-loads`);
+  console.log(`🗺️ Route Planner API:     http://localhost:${PORT}/api/route/optimize`);
+  console.log(`🧪 Mock Data API:        http://localhost:${PORT}/api/mockdata`);
+  console.log(`📈 Forecast API:         http://localhost:${PORT}/api/forecast`);
+  console.log(`🎯 Accuracy API:         http://localhost:${PORT}/api/accuracy`);
+  console.log(`🚨 Alerts API:           http://localhost:${PORT}/api/alerts`);
+  console.log(`🧭 Custom Route API:     http://localhost:${PORT}/api/custom-route`);
+  console.log(`💬 Forecast Chat API:    http://localhost:${PORT}/api/forecast/chat\n`);
 });
 

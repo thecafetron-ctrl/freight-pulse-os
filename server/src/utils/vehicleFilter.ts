@@ -1,7 +1,7 @@
 /**
  * Smart Vehicle Filtering Algorithm
  * 
- * Pre-filters vehicles before sending to OpenAI to reduce tokens and improve speed
+ * Pre-filters vehicles before sending to OpenAI to reduce toke\ns and improve speed
  */
 
 import { Load, Truck } from '../types';
