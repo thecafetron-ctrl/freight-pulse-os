@@ -18,13 +18,19 @@ interface RoutePlannerMapProps {
 
 const FALLBACK_CENTER: [number, number] = [0, 20];
 
+const DEFAULT_MAPBOX_TOKEN =
+  "pk.eyJ1IjoiaGFhcml0aGltcmFuIiwiYSI6ImNtaGxyYmdsOTFrbHIybHM3dDFpM2J6MG8ifQ.N-nGZpXkRbN51S-60oqctA";
+
 const RoutePlannerMap = ({ origin, stops, optimizedOrder }: RoutePlannerMapProps) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [styleReady, setStyleReady] = useState(false);
 
-  const token = import.meta.env.VITE_MAPBOX_TOKEN;
-  const hasToken = typeof token === "string" && token.trim().length > 0 && !token.includes("placeholder");
+  const token =
+    (typeof import.meta.env.VITE_MAPBOX_TOKEN === "string" && import.meta.env.VITE_MAPBOX_TOKEN.trim().length > 0
+      ? import.meta.env.VITE_MAPBOX_TOKEN
+      : DEFAULT_MAPBOX_TOKEN);
+  const hasToken = typeof token === "string" && token.trim().length > 0;
 
   const safeOrigin = useMemo(() => {
     if (!origin || isNaN(origin.lat) || isNaN(origin.lng)) {

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import jsPDF from "jspdf";
 import RoutePlannerMap from "@/components/RoutePlannerMap";
 import { GlassCard } from "@/components/GlassCard";
 import { GlowButton } from "@/components/GlowButton";
@@ -55,6 +56,8 @@ interface RouteMetrics {
   fuelCostUSD: number;
   co2Kg: number;
   fuelEfficiencyKmPerL: number;
+  containersRequired: number;
+  costPerContainerUSD: number;
 }
 
 interface OptimizationResponse {
@@ -64,6 +67,7 @@ interface OptimizationResponse {
     order: string[];
     reason: string;
     timestamp: string;
+    estimatedArrivalIso: string;
     transportMode: string;
     transportIcon: string;
     strategy: string;
@@ -90,6 +94,7 @@ interface OptimizationResponse {
       co2Kg: number;
       fuelEfficiencyKmPerL: number;
       fuelEfficiencyPercent: number;
+      costPerContainerUSD: number;
     };
   };
 }
@@ -181,6 +186,11 @@ const RoutePlanning = () => {
     setErrorReasoning(null);
   };
 
+  const geocodeLocation = useCallback(async (query: string) => {
+    const data = await postJson<GeocodeResponse>("/api/route/geocode", { location: query });
+    return data.location;
+  }, []);
+
   const handleGeocodeOrigin = useCallback(async () => {
     if (!origin.name.trim()) {
       setError("Enter an origin description before using AI coordinates.");
@@ -191,19 +201,14 @@ const RoutePlanning = () => {
 
     setIsGeocodingOrigin(true);
     try {
-      const data = await postJson<GeocodeResponse>("/api/route/geocode", {
-        location: origin.name,
-      });
-
+      const location = await geocodeLocation(origin.name);
       setOrigin((prev) => ({
         ...prev,
-        name: data.location.formatted ?? data.location.name ?? prev.name,
-        lat: data.location.lat,
-        lng: data.location.lng,
+        name: location.formatted ?? location.name ?? prev.name,
+        lat: location.lat,
+        lng: location.lng,
       }));
-      setError(null);
-      setErrorReasoning(null);
-      setRecommendation([]);
+      resetErrors();
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.error ?? "Unable to locate that origin. Please add coordinates manually.");
@@ -212,7 +217,7 @@ const RoutePlanning = () => {
     } finally {
       setIsGeocodingOrigin(false);
     }
-  }, [origin.name]);
+  }, [geocodeLocation, origin.name]);
 
   const handleGeocodeStop = useCallback(
     async (stopId: string) => {
@@ -228,25 +233,20 @@ const RoutePlanning = () => {
 
       setGeocodingStops((prev) => ({ ...prev, [stopId]: true }));
       try {
-        const data = await postJson<GeocodeResponse>("/api/route/geocode", {
-          location: target.name,
-        });
-
+        const location = await geocodeLocation(target.name);
         setStops((prev) =>
           prev.map((stop) =>
             stop.id === stopId
               ? {
                   ...stop,
-                  name: data.location.formatted ?? data.location.name ?? stop.name,
-                  lat: data.location.lat,
-                  lng: data.location.lng,
+                  name: location.formatted ?? location.name ?? stop.name,
+                  lat: location.lat,
+                  lng: location.lng,
                 }
               : stop,
           ),
         );
-        setError(null);
-        setErrorReasoning(null);
-        setRecommendation([]);
+        resetErrors();
       } catch (err) {
         const apiError = err as ApiError;
         setError(apiError.error ?? `Unable to locate ${target.name}. Try a more specific description.`);
@@ -259,29 +259,14 @@ const RoutePlanning = () => {
         });
       }
     },
-    [stops],
+    [geocodeLocation, stops],
   );
 
   const handleGenerate = async () => {
-    if (stops.length < 2) {
-      setError("Please provide at least two stops to optimize a route.");
+    if (stops.length < 1) {
+      setError("Please provide at least one stop to optimize a route.");
       setRecommendation([]);
       setErrorReasoning(null);
-      return;
-    }
-
-    if (!origin.lat || !origin.lng) {
-      setError("Origin requires valid coordinates. Use AI locate or enter lat/lng manually.");
-      setRecommendation([]);
-      setErrorReasoning(null);
-      return;
-    }
-
-    const invalidStop = stops.find((stop) => !stop.lat || !stop.lng);
-    if (invalidStop) {
-      setError(`Stop "${invalidStop.name || "Unnamed"}" is missing coordinates.`);
-      setRecommendation([]);
-      setErrorReasoning("Use the AI locate button or add latitude & longitude manually.");
       return;
     }
 
@@ -289,9 +274,44 @@ const RoutePlanning = () => {
     resetErrors();
 
     try {
+      let nextOrigin = origin;
+
+      if ((!origin.lat || !origin.lng) && origin.name.trim()) {
+        const location = await geocodeLocation(origin.name);
+        nextOrigin = {
+          ...origin,
+          name: location.formatted ?? location.name ?? origin.name,
+          lat: location.lat,
+          lng: location.lng,
+        };
+        setOrigin(nextOrigin);
+      }
+
+      if (!nextOrigin.lat || !nextOrigin.lng) {
+        throw new Error("Origin requires valid coordinates. Use AI locate or enter lat/lng manually.");
+      }
+
+      const updatedStops = await Promise.all(
+        stops.map(async (stop) => {
+          if (stop.lat && stop.lng) return stop;
+          if (!stop.name.trim()) {
+            throw new Error(`Stop "${stop.name || "Unnamed"}" is missing coordinates and has no name to geocode.`);
+          }
+          const location = await geocodeLocation(stop.name);
+          return {
+            ...stop,
+            name: location.formatted ?? location.name ?? stop.name,
+            lat: location.lat,
+            lng: location.lng,
+          };
+        }),
+      );
+
+      setStops(updatedStops);
+
       const data = await postJson<OptimizationResponse>("/api/route/optimize", {
-        origin,
-        stops,
+        origin: nextOrigin,
+        stops: updatedStops,
         transportMode: transport,
         strategy,
         weightKg,
@@ -300,13 +320,87 @@ const RoutePlanning = () => {
       setResult(data);
     } catch (err) {
       const apiError = err as ApiError;
-      setError(apiError.error ?? "Failed to optimize route. Please try again.");
-      setRecommendation(apiError.recommendedModes ?? []);
-      setErrorReasoning(apiError.reasoning ?? null);
+      setResult(null);
+      setError(
+        apiError?.error ??
+          (err instanceof Error ? err.message : "Failed to optimize route. Please verify the details and try again."),
+      );
+      setRecommendation(apiError?.recommendedModes ?? []);
+      setErrorReasoning(apiError?.reasoning ?? null);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleSaveRoute = useCallback(() => {
+    if (!result) {
+      window.alert("Generate a route before saving.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const marginLeft = 14;
+    let currentHeight = 20;
+
+    const addLine = (text: string, fontSize = 10) => {
+      doc.setFontSize(fontSize);
+      doc.text(text, marginLeft, currentHeight);
+      currentHeight += fontSize / 2 + 4;
+    };
+
+    doc.setFont("helvetica", "bold");
+    addLine("AI Route Summary", 16);
+    doc.setFont("helvetica", "normal");
+
+    addLine(`Generated: ${new Date(result.optimizedRoute.timestamp).toLocaleString()}`);
+    addLine(`Strategy: ${result.optimizedRoute.strategy}`);
+    addLine(`Transport Mode: ${result.optimizedRoute.transportMode}`);
+    addLine(`Cargo Weight: ${integerFormatter.format(result.optimizedRoute.weightKg)} kg`);
+    addLine(`Containers Required: ${integerFormatter.format(result.optimizedRoute.containersRequired)}`);
+    addLine(`Estimated Arrival: ${new Date(result.optimizedRoute.estimatedArrivalIso).toLocaleString()}`);
+
+    currentHeight += 4;
+    doc.setFont("helvetica", "bold");
+    addLine("Key Metrics", 14);
+    doc.setFont("helvetica", "normal");
+
+    addLine(`Total Distance: ${numberFormatter.format(result.optimizedRoute.totalDistanceKm)} km`);
+    addLine(`Estimated Time: ${numberFormatter.format(result.optimizedRoute.estimatedTimeHr)} hr`);
+    addLine(`Total Cost: $${numberFormatter.format(result.optimizedRoute.totalCostUSD)}`);
+    addLine(`Cost / kg: $${numberFormatter.format(result.optimizedRoute.costPerKgUSD)}`);
+    addLine(`Cost / container: $${numberFormatter.format(result.optimizedRoute.costPerContainerUSD)}`);
+    addLine(`Fuel Used: ${numberFormatter.format(result.optimizedRoute.fuelUsedLiters)} L`);
+    addLine(`CO₂ Emitted: ${numberFormatter.format(result.optimizedRoute.co2Kg)} kg`);
+
+    currentHeight += 4;
+    doc.setFont("helvetica", "bold");
+    addLine("Optimized Stop Order", 14);
+    doc.setFont("helvetica", "normal");
+
+    result.optimizedRoute.order.forEach((stopName, index) => {
+      addLine(`${index + 1}. ${stopName}`);
+    });
+
+    doc.save(`route-plan-${Date.now()}.pdf`);
+  }, [result]);
+
+  const handleSendDispatcher = useCallback(() => {
+    if (!result) {
+      window.alert("Generate a route before sending to dispatch.");
+      return;
+    }
+
+    const message = [
+      "Dispatch Notification",
+      `Strategy: ${result.optimizedRoute.strategy}`,
+      `Transport Mode: ${result.optimizedRoute.transportMode}`,
+      `Stops: ${result.optimizedRoute.order.join(" ➜ ")}`,
+      `ETA: ${new Date(result.optimizedRoute.estimatedArrivalIso).toLocaleString()}`,
+      `Containers: ${integerFormatter.format(result.optimizedRoute.containersRequired)}`,
+    ].join("\n");
+
+    window.alert(`${message}\n\n(This is a demo hand-off — integrate with your dispatch system here.)`);
+  }, [result]);
 
   const comparisonCards = useMemo(() => {
     if (!result) return [];
@@ -318,64 +412,97 @@ const RoutePlanning = () => {
         original: `${numberFormatter.format(naive.totalDistanceKm)} km`,
         optimized: `${numberFormatter.format(optimized.totalDistanceKm)} km`,
         percent: improvements.distancePercent,
-        delta: `${improvements.distanceKm >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(improvements.distanceKm))} km`,
+        percentLabel: `${improvements.distanceKm >= 0 ? "-" : "+"}${numberFormatter.format(
+          Math.abs(improvements.distanceKm),
+        )} km`,
       },
       {
         label: "Travel Time",
         original: `${numberFormatter.format(naive.totalTimeHr)} hr`,
         optimized: `${numberFormatter.format(optimized.totalTimeHr)} hr`,
         percent: improvements.timePercent,
-        delta: `${improvements.timeHr >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(improvements.timeHr))} hr`,
+        percentLabel: `${improvements.timeHr >= 0 ? "-" : "+"}${numberFormatter.format(
+          Math.abs(improvements.timeHr),
+        )} hr`,
       },
       {
         label: "Total Cost",
         original: `$${numberFormatter.format(naive.totalCostUSD)}`,
         optimized: `$${numberFormatter.format(optimized.totalCostUSD)}`,
         percent: improvements.costPercent,
-        delta: `${improvements.costUSD >= 0 ? "-" : "+"}$${numberFormatter.format(Math.abs(improvements.costUSD))}`,
+        percentLabel: `${improvements.costUSD >= 0 ? "-" : "+"}$${numberFormatter.format(
+          Math.abs(improvements.costUSD),
+        )}`,
       },
       {
         label: "Cost / kg",
         original: `$${numberFormatter.format(naive.costPerKgUSD)}`,
         optimized: `$${numberFormatter.format(optimized.costPerKgUSD)}`,
         percent: improvements.costPerKgPercent,
-        delta: `${improvements.costPerKgUSD >= 0 ? "-" : "+"}$${numberFormatter.format(Math.abs(improvements.costPerKgUSD))}`,
+        percentLabel: `${improvements.costPerKgUSD >= 0 ? "-" : "+"}$${numberFormatter.format(
+          Math.abs(improvements.costPerKgUSD),
+        )}`,
       },
       {
         label: "Fuel Used",
         original: `${numberFormatter.format(naive.fuelUsedLiters)} L`,
         optimized: `${numberFormatter.format(optimized.fuelUsedLiters)} L`,
         percent: improvements.fuelPercent,
-        delta: `${improvements.fuelLiters >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(improvements.fuelLiters))} L`,
+        percentLabel: `${improvements.fuelLiters >= 0 ? "-" : "+"}${numberFormatter.format(
+          Math.abs(improvements.fuelLiters),
+        )} L`,
       },
       {
         label: "Fuel Cost",
         original: `$${numberFormatter.format(naive.fuelCostUSD)}`,
         optimized: `$${numberFormatter.format(optimized.fuelCostUSD)}`,
         percent: improvements.fuelCostPercent,
-        delta: `${improvements.fuelCostUSD >= 0 ? "-" : "+"}$${numberFormatter.format(Math.abs(improvements.fuelCostUSD))}`,
+        percentLabel: `${improvements.fuelCostUSD >= 0 ? "-" : "+"}$${numberFormatter.format(
+          Math.abs(improvements.fuelCostUSD),
+        )}`,
       },
       {
         label: "CO₂ Emitted",
         original: `${numberFormatter.format(naive.co2Kg)} kg`,
         optimized: `${numberFormatter.format(optimized.co2Kg)} kg`,
         percent: improvements.co2Percent,
-        delta: `${improvements.co2Kg >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(improvements.co2Kg))} kg`,
+        percentLabel: `${improvements.co2Kg >= 0 ? "-" : "+"}${numberFormatter.format(
+          Math.abs(improvements.co2Kg),
+        )} kg`,
       },
       {
         label: "Fuel Efficiency",
         original: `${numberFormatter.format(naive.fuelEfficiencyKmPerL)} km/L`,
         optimized: `${numberFormatter.format(optimized.fuelEfficiencyKmPerL)} km/L`,
         percent: improvements.fuelEfficiencyPercent,
-        delta: `${improvements.fuelEfficiencyKmPerL >= 0 ? "+" : "-"}${numberFormatter.format(
+        percentLabel: `${improvements.fuelEfficiencyKmPerL >= 0 ? "+" : "-"}${numberFormatter.format(
           Math.abs(improvements.fuelEfficiencyKmPerL),
         )} km/L`,
+      },
+      {
+        label: "Cost / container",
+        original: `$${numberFormatter.format(naive.costPerContainerUSD)}`,
+        optimized: `$${numberFormatter.format(optimized.costPerContainerUSD)}`,
+        percent: improvements.costPerContainerUSD,
+        percentLabel: `${improvements.costPerContainerUSD >= 0 ? "-" : "+"}$${numberFormatter.format(
+          Math.abs(improvements.costPerContainerUSD),
+        )}`,
+      },
+      {
+        label: "Containers Required",
+        original: integerFormatter.format(naive.containersRequired),
+        optimized: integerFormatter.format(optimized.containersRequired),
+        percent: null,
+        percentLabel: `${optimized.containersRequired - naive.containersRequired >= 0 ? "+" : "-"}${integerFormatter.format(
+          Math.abs(optimized.containersRequired - naive.containersRequired),
+        )}`,
       },
     ];
   }, [result]);
 
   const mapStops: MapStop[] = result?.optimizedRoute.stops ?? stops;
   const mapOrder = result?.optimizedRoute.order;
+  const estimatedArrival = result ? new Date(result.optimizedRoute.estimatedArrivalIso).toLocaleString() : null;
 
   return (
     <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
@@ -396,13 +523,11 @@ const RoutePlanning = () => {
               <h3 className="text-xl font-semibold text-white">Route Inputs</h3>
               <span className="text-xs text-[hsl(var(--text-secondary))]">All values are demo-friendly</span>
             </div>
-            
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))]">
-                    Origin
-                  </label>
+                  <label className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))]">Origin</label>
                   <button
                     onClick={handleGeocodeOrigin}
                     disabled={isGeocodingOrigin}
@@ -412,7 +537,7 @@ const RoutePlanning = () => {
                     AI locate
                   </button>
                 </div>
-                <Input 
+                <Input
                   value={origin.name}
                   onChange={(e) => setOrigin((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Origin name"
@@ -441,10 +566,7 @@ const RoutePlanning = () => {
                   <label className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))]">
                     Delivery Stops
                   </label>
-                  <button
-                    onClick={addStop}
-                    className="flex items-center gap-2 text-xs text-[hsl(var(--cyan-glow))] hover:text-white transition-colors"
-                  >
+                  <button onClick={addStop} className="flex items-center gap-2 text-xs text-[hsl(var(--cyan-glow))] hover:text-white transition-colors">
                     <Plus className="w-4 h-4" /> Add stop
                   </button>
                 </div>
@@ -490,14 +612,14 @@ const RoutePlanning = () => {
                             placeholder="Latitude"
                             className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
                           />
-                      <Input 
+                          <Input
                             type="number"
                             value={stop.lng}
                             onChange={(e) => updateStopValue(stop.id, "lng", e.target.value)}
                             placeholder="Longitude"
                             className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                      />
-                    </div>
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -515,15 +637,11 @@ const RoutePlanning = () => {
                   onChange={(e) => setWeightKg(Number(e.target.value))}
                   className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
                 />
-                <p className="text-[hsl(var(--text-secondary))] text-xs">
-                  Weight influences mode eligibility, fuel burn, and cost per kg.
-                </p>
+                <p className="text-[hsl(var(--text-secondary))] text-xs">Weight influences mode eligibility, fuel burn, and cost per kg.</p>
               </div>
 
               <div className="space-y-2">
-                <span className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))]">
-                  Transport Mode
-                </span>
+                <span className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))]">Transport Mode</span>
                 <div className="grid grid-cols-3 gap-2">
                   {transportOptions.map((option) => {
                     const isActive = transport === option.id;
@@ -578,12 +696,7 @@ const RoutePlanning = () => {
                 </div>
               </div>
 
-              <GlowButton
-                variant="primary"
-                className="w-full mt-4"
-                onClick={handleGenerate}
-                disabled={isLoading}
-              >
+              <GlowButton variant="primary" className="w-full mt-4" onClick={handleGenerate} disabled={isLoading}>
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -602,9 +715,7 @@ const RoutePlanning = () => {
                   </div>
                   {errorReasoning && <p className="text-xs text-red-200/80">{errorReasoning}</p>}
                   {recommendation.length > 0 && (
-                    <p className="text-xs text-red-200/80">
-                      Recommended modes: {recommendation.join(", ")}
-                    </p>
+                    <p className="text-xs text-red-200/80">Recommended modes: {recommendation.join(", ")}</p>
                   )}
                 </div>
               )}
@@ -618,17 +729,24 @@ const RoutePlanning = () => {
 
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-white">Route Overview</h3>
-              <span className="text-xs text-[hsl(var(--text-secondary))]">
-                {result
-                  ? `Optimized at ${new Date(result.optimizedRoute.timestamp).toLocaleTimeString()}`
-                  : "Awaiting optimization"}
-              </span>
+              <div className="text-right">
+                <p className="text-xs text-[hsl(var(--text-secondary))]">
+                  {result
+                    ? `Optimized at ${new Date(result.optimizedRoute.timestamp).toLocaleTimeString()}`
+                    : "Awaiting optimization"}
+                </p>
+                {estimatedArrival && (
+                  <p className="text-xs text-[hsl(var(--text-secondary))]">
+                    Estimated Arrival: <span className="text-white">{estimatedArrival}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               <GlassCard glow="orange" className="bg-white/5 border border-white/10">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Total Trip Cost</p>
-                <p className="text-2xl font-semibold text-white">
+                <p className="text-2xl font-semibold text-white break-all">
                   {result ? `$${numberFormatter.format(result.optimizedRoute.totalCostUSD)}` : "—"}
                 </p>
                 {result && (
@@ -646,22 +764,36 @@ const RoutePlanning = () => {
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Distance</p>
-                <p className="text-lg font-semibold text-white">
+                <p className="text-lg font-semibold text-white break-all">
                   {result ? `${numberFormatter.format(result.optimizedRoute.totalDistanceKm)} km` : "—"}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Estimated Time</p>
-                <p className="text-lg font-semibold text-white">
-                  {result ? `${numberFormatter.format(result.optimizedRoute.totalTimeHr)} hr` : "—"}
+                <p className="text-lg font-semibold text-white break-all">
+                  {result ? `${numberFormatter.format(result.optimizedRoute.estimatedTimeHr)} hr` : "—"}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Fuel Used</p>
-                <p className="text-lg font-semibold text-white">
+                <p className="text-lg font-semibold text-white break-all">
                   {result ? `${numberFormatter.format(result.optimizedRoute.fuelUsedLiters)} L` : "—"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs text-[hsl(var(--text-secondary))]">Cost / Container</p>
+                <p className="text-lg font-semibold text-white break-all">
+                  {result ? `$${numberFormatter.format(result.optimizedRoute.costPerContainerUSD)}` : "—"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs text-[hsl(var(--text-secondary))]">Containers Needed</p>
+                <p className="text-lg font-semibold text-white break-all">
+                  {result ? integerFormatter.format(result.optimizedRoute.containersRequired) : "—"}
                 </p>
               </div>
             </div>
@@ -682,7 +814,8 @@ const RoutePlanning = () => {
                       {result ? result.optimizedRoute.transportMode : transportOptions.find((o) => o.id === transport)?.label}
                     </span>
                     <span className="text-sm text-[hsl(var(--text-secondary))]">
-                      {integerFormatter.format(weightKg)} kg cargo
+                      {integerFormatter.format(weightKg)} kg cargo · {result ? integerFormatter.format(result.optimizedRoute.containersRequired) : "—"} container
+                      {result && result.optimizedRoute.containersRequired !== 1 ? "s" : ""}
                     </span>
                   </div>
                   <p className="text-[hsl(var(--text-secondary))] text-sm leading-relaxed">
@@ -694,29 +827,29 @@ const RoutePlanning = () => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">Cost / kg</p>
-                        <p className="text-white font-semibold">
+                        <p className="text-white font-semibold break-all">
                           ${numberFormatter.format(result.optimizedRoute.costPerKgUSD)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">Fuel cost</p>
-                        <p className="text-white font-semibold">
+                        <p className="text-white font-semibold break-all">
                           ${numberFormatter.format(result.optimizedRoute.fuelCostUSD)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">CO₂ emitted</p>
-                        <p className="text-white font-semibold">
+                        <p className="text-white font-semibold break-all">
                           {numberFormatter.format(result.optimizedRoute.co2Kg)} kg
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">Fuel efficiency</p>
-                        <p className="text-white font-semibold">
+                        <p className="text-white font-semibold break-all">
                           {numberFormatter.format(result.optimizedRoute.fuelEfficiencyKmPerL)} km/L
                         </p>
-                  </div>
-                  </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -733,14 +866,24 @@ const RoutePlanning = () => {
                     <div key={card.label} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                       <p className="text-xs text-[hsl(var(--text-secondary))]">{card.label}</p>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-white/70">{card.original}</span>
-                        <span className="text-white font-semibold">{card.optimized}</span>
+                        <span className="text-white/70 break-all">{card.original}</span>
+                        <span className="text-white font-semibold break-all">{card.optimized}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
-                        <span className={`${card.percent >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {card.percent >= 0 ? "-" : "+"}{numberFormatter.format(Math.abs(card.percent))}%
+                        <span
+                          className={`${
+                            card.percent === null
+                              ? "text-[hsl(var(--text-secondary))]"
+                              : card.percent >= 0
+                                ? "text-green-400"
+                                : "text-red-400"
+                          }`}
+                        >
+                          {card.percent === null
+                            ? "—"
+                            : `${card.percent >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(card.percent))}%`}
                         </span>
-                        <span className="text-white/80">{card.delta}</span>
+                        <span className="text-white/80 break-all">{card.percentLabel}</span>
                       </div>
                     </div>
                   ))}
@@ -761,7 +904,7 @@ const RoutePlanning = () => {
                 {(result ? result.optimizedRoute.order : stops.map((stop) => stop.name || "Stop")).map((name, idx) => (
                   <span
                     key={`${name}-${idx}`}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/10 border border-white/15 text-white flex items-center gap-2"
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/10 border border-white/15 text-white flex items-center gap-2 max-w-[200px] break-words"
                   >
                     <span className="w-5 h-5 rounded-full bg-[hsl(var(--cyan-glow))] text-black flex items-center justify-center">
                       {idx + 1}
@@ -783,25 +926,25 @@ const RoutePlanning = () => {
               <div className="grid grid-cols-2 gap-3 text-xs text-[hsl(var(--text-secondary))]">
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>Total Distance</p>
-                  <p className="text-white text-lg font-semibold">
+                  <p className="text-white text-lg font-semibold break-all">
                     {numberFormatter.format(result.optimizedRoute.totalDistanceKm)} km
                   </p>
                 </div>
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-                  <p>ETA</p>
-                  <p className="text-white text-lg font-semibold">
+                  <p>ETA (Hours)</p>
+                  <p className="text-white text-lg font-semibold break-all">
                     {numberFormatter.format(result.optimizedRoute.totalTimeHr)} hr
                   </p>
                 </div>
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>Fuel Used</p>
-                  <p className="text-white text-lg font-semibold">
+                  <p className="text-white text-lg font-semibold break-all">
                     {numberFormatter.format(result.optimizedRoute.fuelUsedLiters)} L
                   </p>
                 </div>
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>CO₂ Output</p>
-                  <p className="text-white text-lg font-semibold">
+                  <p className="text-white text-lg font-semibold break-all">
                     {numberFormatter.format(result.optimizedRoute.co2Kg)} kg
                   </p>
                 </div>
@@ -809,7 +952,7 @@ const RoutePlanning = () => {
             ) : (
               <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-sm text-[hsl(var(--text-secondary))]">
                 Enter stops, weight, transport mode, and strategy to see AI insights and metrics.
-            </div>
+              </div>
             )}
 
             <div className="p-4 rounded-xl bg-gradient-to-br from-white/5 to-white/10 border border-[hsl(var(--orange-glow))]/30 space-y-3">
@@ -858,15 +1001,20 @@ const RoutePlanning = () => {
             </div>
 
             <div className="space-y-2">
-              <GlowButton variant="primary" className="w-full" disabled={!result}>
+              <GlowButton variant="primary" className="w-full" disabled={!result} onClick={handleSaveRoute}>
                 Save Route
               </GlowButton>
-              <GlowButton variant="outline" className="w-full" disabled={!result}>
+              <GlowButton variant="outline" className="w-full" disabled={!result} onClick={handleSendDispatcher}>
                 Send to Dispatcher
               </GlowButton>
               <button
                 className="w-full px-4 py-2 text-sm text-[hsl(var(--text-secondary))] hover:text-white transition-colors disabled:opacity-50"
                 disabled={!result}
+                onClick={() =>
+                  result
+                    ? window.alert("TMS export coming soon — integrate your preferred workflow here.")
+                    : window.alert("Generate a route before exporting.")
+                }
               >
                 Export to TMS
               </button>
@@ -880,21 +1028,25 @@ const RoutePlanning = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-[hsl(var(--text-secondary))]">
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                 <p className="text-xs uppercase tracking-wide">Original Route</p>
-                <div className="flex items-center gap-2 text-white text-lg font-semibold">
+                <div className="flex items-center gap-2 text-white text-lg font-semibold break-all">
                   <DollarSign className="w-4 h-4" />
                   ${numberFormatter.format(result.comparison.naive.totalCostUSD)}
                 </div>
                 <p>Distance: {numberFormatter.format(result.comparison.naive.totalDistanceKm)} km</p>
                 <p>ETA: {numberFormatter.format(result.comparison.naive.totalTimeHr)} hr</p>
-                  </div>
+                <p>Cost / container: ${numberFormatter.format(result.comparison.naive.costPerContainerUSD)}</p>
+                <p>Containers: {integerFormatter.format(result.comparison.naive.containersRequired)}</p>
+              </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                 <p className="text-xs uppercase tracking-wide">Optimized Route</p>
-                <div className="flex items-center gap-2 text-white text-lg font-semibold">
+                <div className="flex items-center gap-2 text-white text-lg font-semibold break-all">
                   <DollarSign className="w-4 h-4" />
                   ${numberFormatter.format(result.comparison.optimized.totalCostUSD)}
                 </div>
                 <p>Distance: {numberFormatter.format(result.comparison.optimized.totalDistanceKm)} km</p>
                 <p>ETA: {numberFormatter.format(result.comparison.optimized.estimatedTimeHr)} hr</p>
+                <p>Cost / container: ${numberFormatter.format(result.comparison.optimized.costPerContainerUSD)}</p>
+                <p>Containers: {integerFormatter.format(result.comparison.optimized.containersRequired)}</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                 <p className="text-xs uppercase tracking-wide">Savings Snapshot</p>
@@ -915,9 +1067,13 @@ const RoutePlanning = () => {
                   CO₂ Δ: {result.comparison.improvements.co2Kg >= 0 ? "-" : "+"}
                   {numberFormatter.format(Math.abs(result.comparison.improvements.co2Kg))} kg
                 </p>
+                <p>
+                  Cost / container Δ: {result.comparison.improvements.costPerContainerUSD >= 0 ? "-" : "+"}$
+                  {numberFormatter.format(Math.abs(result.comparison.improvements.costPerContainerUSD))}
+                </p>
               </div>
-          </div>
-        </GlassCard>
+            </div>
+          </GlassCard>
         )}
       </div>
     </div>

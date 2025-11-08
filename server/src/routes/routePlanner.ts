@@ -22,6 +22,8 @@ interface TripMetrics {
   fuelCostUSD: number;
   co2Kg: number;
   fuelEfficiencyKmPerL: number;
+  containersRequired: number;
+  costPerContainerUSD: number;
 }
 
 const TRANSPORT_MODELS: Record<TransportModeKey, {
@@ -31,6 +33,7 @@ const TRANSPORT_MODELS: Record<TransportModeKey, {
   fixedCost: number;
   maxPayloadKg: number;
   co2PerL: number;
+  containerCapacityKg: number;
 }> = {
   air: {
     speedKmh: 800,
@@ -39,6 +42,7 @@ const TRANSPORT_MODELS: Record<TransportModeKey, {
     fixedCost: 15000,
     maxPayloadKg: 100000,
     co2PerL: 3.16,
+    containerCapacityKg: 5000,
   },
   sea: {
     speedKmh: 37,
@@ -47,6 +51,7 @@ const TRANSPORT_MODELS: Record<TransportModeKey, {
     fixedCost: 20000,
     maxPayloadKg: 20000000,
     co2PerL: 3.0,
+    containerCapacityKg: 12000,
   },
   land: {
     speedKmh: 80,
@@ -55,6 +60,7 @@ const TRANSPORT_MODELS: Record<TransportModeKey, {
     fixedCost: 500,
     maxPayloadKg: 40000,
     co2PerL: 2.6,
+    containerCapacityKg: 10000,
   },
 };
 
@@ -129,6 +135,9 @@ function calculateTrip(distanceKm: number, mode: TransportModeKey, weightKg: num
   const costPerKg = totalCost / Math.max(weightKg, 1);
   const timeHr = distanceKm / Math.max(model.speedKmh, 0.0001);
   const fuelEfficiencyKmPerL = fuelUsed > 0 ? distanceKm / fuelUsed : 0;
+  const containerCapacity = Math.max(model.containerCapacityKg, 1);
+  const containersRequired = Math.max(1, Math.ceil(weightKg / containerCapacity));
+  const costPerContainerUSD = totalCost / containersRequired;
 
   return {
     totalDistanceKm: distanceKm,
@@ -139,6 +148,8 @@ function calculateTrip(distanceKm: number, mode: TransportModeKey, weightKg: num
     fuelCostUSD: fuelCost,
     co2Kg,
     fuelEfficiencyKmPerL,
+    containersRequired,
+    costPerContainerUSD,
   };
 }
 
@@ -155,30 +166,7 @@ function aggregateMetrics(origin: Location, stops: Location[], mode: TransportMo
 }
 
 function determineStrategyOrder(origin: Location, stops: Location[], strategy: StrategyKey): Location[] {
-  const cloned = [...stops];
-  if (cloned.length <= 1) return cloned;
-
-  if (strategy === 'fastest') {
-    return cloned
-      .map((stop) => ({
-        stop,
-        distance: haversineDistance(origin.lat, origin.lng, stop.lat, stop.lng),
-      }))
-      .sort((a, b) => a.distance - b.distance)
-      .map((item) => item.stop);
-  }
-
-  if (strategy === 'cheapest') {
-    return cloned
-      .map((stop) => ({
-        stop,
-        distance: haversineDistance(origin.lat, origin.lng, stop.lat, stop.lng),
-      }))
-      .sort((a, b) => b.distance - a.distance)
-      .map((item) => item.stop);
-  }
-
-  return [...cloned.slice(1), cloned[0]];
+  return [...stops];
 }
 
 function percentageChange(original: number, current: number) {
@@ -206,12 +194,8 @@ routePlannerRouter.post('/optimize', (req: Request, res: Response) => {
 
     if (!origin || !stops || stops.length < 1) {
       return res.status(400).json({
-        error: 'Please add at least 2 delivery stops. With only 1 stop, there is no route to optimize.',
+        error: 'Add at least one destination stop to generate a route.',
       });
-    }
-
-    if (stops.length < 2) {
-      return res.status(400).json({ error: 'At least 2 stops are required to optimize a route.' });
     }
 
     const numericWeight = Number(weightKg);
@@ -273,6 +257,8 @@ routePlannerRouter.post('/optimize', (req: Request, res: Response) => {
     const adjustedCostPerKg = adjustedTotalCost / Math.max(numericWeight, 1);
     const adjustedCo2 = Math.max(baseTrip.co2Kg * (1 + adjustment.co2Modifier), 0);
     const adjustedFuelEfficiency = adjustedFuelUsed > 0 ? targetDistance / adjustedFuelUsed : 0;
+    const containersRequired = baseTrip.containersRequired;
+    const costPerContainerUSD = containersRequired > 0 ? adjustedTotalCost / containersRequired : adjustedTotalCost;
 
     const optimizedMetrics: TripMetrics = {
       totalDistanceKm: targetDistance,
@@ -283,6 +269,8 @@ routePlannerRouter.post('/optimize', (req: Request, res: Response) => {
       fuelCostUSD: adjustedFuelCost,
       co2Kg: adjustedCo2,
       fuelEfficiencyKmPerL: adjustedFuelEfficiency,
+      containersRequired,
+      costPerContainerUSD,
     };
 
     const distanceImprovement = percentageChange(naiveMetrics.totalDistanceKm, optimizedMetrics.totalDistanceKm);
@@ -312,11 +300,14 @@ routePlannerRouter.post('/optimize', (req: Request, res: Response) => {
         fuelEfficiencyKmPerL: optimizedMetrics.fuelEfficiencyKmPerL,
         reason: STRATEGY_REASONING[strategyKey],
         timestamp: new Date().toISOString(),
+        estimatedArrivalIso: new Date(Date.now() + optimizedMetrics.totalTimeHr * 60 * 60 * 1000).toISOString(),
         transportMode: TRANSPORT_LABELS[modeKey],
         transportIcon: TRANSPORT_ICONS[modeKey],
         strategy: STRATEGY_LABELS[strategyKey].name,
         strategyIcon: STRATEGY_LABELS[strategyKey].icon,
         weightKg: numericWeight,
+        containersRequired: optimizedMetrics.containersRequired,
+        costPerContainerUSD: optimizedMetrics.costPerContainerUSD,
       },
       comparison: {
         naive: {
@@ -328,6 +319,8 @@ routePlannerRouter.post('/optimize', (req: Request, res: Response) => {
           fuelCostUSD: naiveMetrics.fuelCostUSD,
           co2Kg: naiveMetrics.co2Kg,
           fuelEfficiencyKmPerL: naiveMetrics.fuelEfficiencyKmPerL,
+          containersRequired: naiveMetrics.containersRequired,
+          costPerContainerUSD: naiveMetrics.costPerContainerUSD,
         },
         optimized: {
           totalDistanceKm: optimizedMetrics.totalDistanceKm,
@@ -338,6 +331,8 @@ routePlannerRouter.post('/optimize', (req: Request, res: Response) => {
           fuelCostUSD: optimizedMetrics.fuelCostUSD,
           co2Kg: optimizedMetrics.co2Kg,
           fuelEfficiencyKmPerL: optimizedMetrics.fuelEfficiencyKmPerL,
+          containersRequired: optimizedMetrics.containersRequired,
+          costPerContainerUSD: optimizedMetrics.costPerContainerUSD,
         },
         improvements: {
           distancePercent: distanceImprovement,
@@ -356,6 +351,7 @@ routePlannerRouter.post('/optimize', (req: Request, res: Response) => {
           co2Kg: naiveMetrics.co2Kg - optimizedMetrics.co2Kg,
           fuelEfficiencyKmPerL: fuelEfficiencyDelta,
           fuelEfficiencyPercent,
+          costPerContainerUSD: naiveMetrics.costPerContainerUSD - optimizedMetrics.costPerContainerUSD,
         },
       },
     });
