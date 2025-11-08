@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { haversineDistance } from '../utils/distanceCalculator';
 import { analyzeRoute, isTransportModeValid } from '../utils/routeValidation';
+import OpenAI from 'openai';
 
 type StrategyKey = 'fastest' | 'cheapest' | 'ai';
 type TransportModeKey = 'air' | 'sea' | 'land';
@@ -110,6 +111,8 @@ const STRATEGY_ADJUSTMENTS: Record<StrategyKey, {
     co2Modifier: -0.05,
   },
 };
+
+const openaiClient = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 function calculateTrip(distanceKm: number, mode: TransportModeKey, weightKg: number): TripMetrics {
   const model = TRANSPORT_MODELS[mode];
@@ -361,6 +364,84 @@ routePlannerRouter.post('/optimize', (req: Request, res: Response) => {
     return res.status(500).json({
       error: 'Failed to optimize route',
       details: (error as Error).message,
+    });
+  }
+});
+
+routePlannerRouter.post('/geocode', async (req: Request, res: Response) => {
+  try {
+    const { location } = req.body as { location?: string };
+
+    if (!location || !location.trim()) {
+      return res.status(400).json({ error: 'Location is required for geocoding.' });
+    }
+
+    if (!openaiClient) {
+      return res.status(500).json({
+        error: 'OpenAI API key is not configured. Set OPENAI_API_KEY to enable AI geocoding.',
+      });
+    }
+
+    const completion = await openaiClient.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0.3,
+      max_tokens: 200,
+      messages: [
+        {
+          role: 'system',
+          content: `You are a geocoding assistant. Given a location name, address, or description, return the latitude and longitude coordinates in JSON format. Be as accurate as possible. Always respond with valid JSON only, no extra text.
+
+Response format:
+{
+  "name": "cleaned location name",
+  "lat": latitude as number,
+  "lng": longitude as number,
+  "formatted": "formatted address"
+}`,
+        },
+        {
+          role: 'user',
+          content: `Find coordinates for: ${location}`,
+        },
+      ],
+    });
+
+    const responseText = completion.choices[0]?.message?.content ?? '';
+    let parsed: any;
+
+    try {
+      parsed = JSON.parse(responseText);
+    } catch (error) {
+      const match = responseText.match(/\{[\s\S]*\}/);
+      if (!match) {
+        throw new Error('Failed to parse geocoding response');
+      }
+      parsed = JSON.parse(match[0]);
+    }
+
+    if (
+      typeof parsed.lat !== 'number' ||
+      typeof parsed.lng !== 'number' ||
+      Number.isNaN(parsed.lat) ||
+      Number.isNaN(parsed.lng)
+    ) {
+      throw new Error('Invalid coordinates returned');
+    }
+
+    return res.json({
+      success: true,
+      location: {
+        name: parsed.name ?? location,
+        lat: parsed.lat,
+        lng: parsed.lng,
+        formatted: parsed.formatted ?? parsed.name ?? location,
+      },
+    });
+  } catch (error) {
+    console.error('Error in geocode route:', error);
+    return res.status(500).json({
+      error: 'Failed to geocode location',
+      reasoning: (error as Error).message,
     });
   }
 });

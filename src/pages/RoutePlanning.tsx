@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import RoutePlannerMap from "@/components/RoutePlannerMap";
 import { GlassCard } from "@/components/GlassCard";
 import { GlowButton } from "@/components/GlowButton";
 import { Input } from "@/components/ui/input";
-import { postJson } from "@/lib/api";
 import {
   AlertTriangle,
   Brain,
@@ -19,20 +19,32 @@ import {
   Trash2,
   TrendingUp,
   Truck,
+  Wand2,
 } from "lucide-react";
+import { postJson } from "@/lib/api";
+import type { MapStop } from "@/components/RoutePlannerMap";
 
-const number = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
-const integer = new Intl.NumberFormat("en-US");
+const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+const integerFormatter = new Intl.NumberFormat("en-US");
+
+const strategyOptions = [
+  { id: "fastest" as const, label: "Fastest", description: "Minimize travel time", icon: "⚡" },
+  { id: "cheapest" as const, label: "Cheapest", description: "Minimize trip spend", icon: "💰" },
+  { id: "ai" as const, label: "AI Optimized", description: "Balanced demo output", icon: "🤖" },
+];
+
+const transportOptions = [
+  { id: "land" as const, label: "Land", icon: <Truck className="w-4 h-4" />, subtitle: "Regional ground fleets" },
+  { id: "sea" as const, label: "Sea", icon: <Ship className="w-4 h-4" />, subtitle: "Global ocean freight" },
+  { id: "air" as const, label: "Air", icon: <Plane className="w-4 h-4" />, subtitle: "Express air cargo" },
+];
+
+interface StopInput extends MapStop {
+  id: string;
+}
 
 type StrategyKey = "fastest" | "cheapest" | "ai";
 type TransportKey = "air" | "sea" | "land";
-
-interface StopInput {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-}
 
 interface RouteMetrics {
   totalDistanceKm: number;
@@ -88,6 +100,16 @@ interface ApiError {
   reasoning?: string;
 }
 
+interface GeocodeResponse {
+  success: boolean;
+  location: {
+    name: string;
+    lat: number;
+    lng: number;
+    formatted?: string;
+  };
+}
+
 const defaultOrigin: StopInput = {
   id: "origin",
   name: "Dubai Mega Hub",
@@ -110,18 +132,6 @@ const defaultStops: StopInput[] = [
   },
 ];
 
-const transportOptions: { id: TransportKey; label: string; icon: JSX.Element }[] = [
-  { id: "land", label: "Land", icon: <Truck className="w-4 h-4" /> },
-  { id: "sea", label: "Sea", icon: <Ship className="w-4 h-4" /> },
-  { id: "air", label: "Air", icon: <Plane className="w-4 h-4" /> },
-];
-
-const strategyOptions: { id: StrategyKey; label: string; description: string; icon: string }[] = [
-  { id: "fastest", label: "Fastest", description: "Minimize travel time", icon: "⚡" },
-  { id: "cheapest", label: "Cheapest", description: "Minimize trip spend", icon: "💰" },
-  { id: "ai", label: "AI Optimized", description: "Balanced demo output", icon: "🤖" },
-];
-
 const RoutePlanning = () => {
   const [origin, setOrigin] = useState<StopInput>(defaultOrigin);
   const [stops, setStops] = useState<StopInput[]>(defaultStops);
@@ -133,6 +143,8 @@ const RoutePlanning = () => {
   const [error, setError] = useState<string | null>(null);
   const [recommendation, setRecommendation] = useState<string[]>([]);
   const [errorReasoning, setErrorReasoning] = useState<string | null>(null);
+  const [isGeocodingOrigin, setIsGeocodingOrigin] = useState(false);
+  const [geocodingStops, setGeocodingStops] = useState<Record<string, boolean>>({});
 
   const addStop = () => {
     setStops((prev) => [
@@ -169,9 +181,107 @@ const RoutePlanning = () => {
     setErrorReasoning(null);
   };
 
+  const handleGeocodeOrigin = useCallback(async () => {
+    if (!origin.name.trim()) {
+      setError("Enter an origin description before using AI coordinates.");
+      setErrorReasoning(null);
+      setRecommendation([]);
+      return;
+    }
+
+    setIsGeocodingOrigin(true);
+    try {
+      const data = await postJson<GeocodeResponse>("/api/route/geocode", {
+        location: origin.name,
+      });
+
+      setOrigin((prev) => ({
+        ...prev,
+        name: data.location.formatted ?? data.location.name ?? prev.name,
+        lat: data.location.lat,
+        lng: data.location.lng,
+      }));
+      setError(null);
+      setErrorReasoning(null);
+      setRecommendation([]);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.error ?? "Unable to locate that origin. Please add coordinates manually.");
+      setErrorReasoning(apiError.reasoning ?? null);
+      setRecommendation([]);
+    } finally {
+      setIsGeocodingOrigin(false);
+    }
+  }, [origin.name]);
+
+  const handleGeocodeStop = useCallback(
+    async (stopId: string) => {
+      const target = stops.find((stop) => stop.id === stopId);
+      if (!target) return;
+
+      if (!target.name.trim()) {
+        setError("Add a location name before using AI coordinates for this stop.");
+        setErrorReasoning(null);
+        setRecommendation([]);
+        return;
+      }
+
+      setGeocodingStops((prev) => ({ ...prev, [stopId]: true }));
+      try {
+        const data = await postJson<GeocodeResponse>("/api/route/geocode", {
+          location: target.name,
+        });
+
+        setStops((prev) =>
+          prev.map((stop) =>
+            stop.id === stopId
+              ? {
+                  ...stop,
+                  name: data.location.formatted ?? data.location.name ?? stop.name,
+                  lat: data.location.lat,
+                  lng: data.location.lng,
+                }
+              : stop,
+          ),
+        );
+        setError(null);
+        setErrorReasoning(null);
+        setRecommendation([]);
+      } catch (err) {
+        const apiError = err as ApiError;
+        setError(apiError.error ?? `Unable to locate ${target.name}. Try a more specific description.`);
+        setErrorReasoning(apiError.reasoning ?? null);
+        setRecommendation([]);
+      } finally {
+        setGeocodingStops((prev) => {
+          const { [stopId]: _omit, ...rest } = prev;
+          return rest;
+        });
+      }
+    },
+    [stops],
+  );
+
   const handleGenerate = async () => {
     if (stops.length < 2) {
       setError("Please provide at least two stops to optimize a route.");
+      setRecommendation([]);
+      setErrorReasoning(null);
+      return;
+    }
+
+    if (!origin.lat || !origin.lng) {
+      setError("Origin requires valid coordinates. Use AI locate or enter lat/lng manually.");
+      setRecommendation([]);
+      setErrorReasoning(null);
+      return;
+    }
+
+    const invalidStop = stops.find((stop) => !stop.lat || !stop.lng);
+    if (invalidStop) {
+      setError(`Stop "${invalidStop.name || "Unnamed"}" is missing coordinates.`);
+      setRecommendation([]);
+      setErrorReasoning("Use the AI locate button or add latitude & longitude manually.");
       return;
     }
 
@@ -190,7 +300,6 @@ const RoutePlanning = () => {
       setResult(data);
     } catch (err) {
       const apiError = err as ApiError;
-      setResult(null);
       setError(apiError.error ?? "Failed to optimize route. Please try again.");
       setRecommendation(apiError.recommendedModes ?? []);
       setErrorReasoning(apiError.reasoning ?? null);
@@ -206,64 +315,67 @@ const RoutePlanning = () => {
     return [
       {
         label: "Distance",
-        original: `${number.format(naive.totalDistanceKm)} km`,
-        optimized: `${number.format(optimized.totalDistanceKm)} km`,
+        original: `${numberFormatter.format(naive.totalDistanceKm)} km`,
+        optimized: `${numberFormatter.format(optimized.totalDistanceKm)} km`,
         percent: improvements.distancePercent,
-        delta: `${improvements.distanceKm >= 0 ? "-" : "+"}${number.format(Math.abs(improvements.distanceKm))} km`,
+        delta: `${improvements.distanceKm >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(improvements.distanceKm))} km`,
       },
       {
         label: "Travel Time",
-        original: `${number.format(naive.totalTimeHr)} hr`,
-        optimized: `${number.format(optimized.totalTimeHr)} hr`,
+        original: `${numberFormatter.format(naive.totalTimeHr)} hr`,
+        optimized: `${numberFormatter.format(optimized.totalTimeHr)} hr`,
         percent: improvements.timePercent,
-        delta: `${improvements.timeHr >= 0 ? "-" : "+"}${number.format(Math.abs(improvements.timeHr))} hr`,
+        delta: `${improvements.timeHr >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(improvements.timeHr))} hr`,
       },
       {
         label: "Total Cost",
-        original: `$${number.format(naive.totalCostUSD)}`,
-        optimized: `$${number.format(optimized.totalCostUSD)}`,
+        original: `$${numberFormatter.format(naive.totalCostUSD)}`,
+        optimized: `$${numberFormatter.format(optimized.totalCostUSD)}`,
         percent: improvements.costPercent,
-        delta: `${improvements.costUSD >= 0 ? "-" : "+"}$${number.format(Math.abs(improvements.costUSD))}`,
+        delta: `${improvements.costUSD >= 0 ? "-" : "+"}$${numberFormatter.format(Math.abs(improvements.costUSD))}`,
       },
       {
         label: "Cost / kg",
-        original: `$${number.format(naive.costPerKgUSD)}`,
-        optimized: `$${number.format(optimized.costPerKgUSD)}`,
+        original: `$${numberFormatter.format(naive.costPerKgUSD)}`,
+        optimized: `$${numberFormatter.format(optimized.costPerKgUSD)}`,
         percent: improvements.costPerKgPercent,
-        delta: `${improvements.costPerKgUSD >= 0 ? "-" : "+"}$${number.format(Math.abs(improvements.costPerKgUSD))}`,
+        delta: `${improvements.costPerKgUSD >= 0 ? "-" : "+"}$${numberFormatter.format(Math.abs(improvements.costPerKgUSD))}`,
       },
       {
         label: "Fuel Used",
-        original: `${number.format(naive.fuelUsedLiters)} L`,
-        optimized: `${number.format(optimized.fuelUsedLiters)} L`,
+        original: `${numberFormatter.format(naive.fuelUsedLiters)} L`,
+        optimized: `${numberFormatter.format(optimized.fuelUsedLiters)} L`,
         percent: improvements.fuelPercent,
-        delta: `${improvements.fuelLiters >= 0 ? "-" : "+"}${number.format(Math.abs(improvements.fuelLiters))} L`,
+        delta: `${improvements.fuelLiters >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(improvements.fuelLiters))} L`,
       },
       {
         label: "Fuel Cost",
-        original: `$${number.format(naive.fuelCostUSD)}`,
-        optimized: `$${number.format(optimized.fuelCostUSD)}`,
+        original: `$${numberFormatter.format(naive.fuelCostUSD)}`,
+        optimized: `$${numberFormatter.format(optimized.fuelCostUSD)}`,
         percent: improvements.fuelCostPercent,
-        delta: `${improvements.fuelCostUSD >= 0 ? "-" : "+"}$${number.format(Math.abs(improvements.fuelCostUSD))}`,
+        delta: `${improvements.fuelCostUSD >= 0 ? "-" : "+"}$${numberFormatter.format(Math.abs(improvements.fuelCostUSD))}`,
       },
       {
         label: "CO₂ Emitted",
-        original: `${number.format(naive.co2Kg)} kg`,
-        optimized: `${number.format(optimized.co2Kg)} kg`,
+        original: `${numberFormatter.format(naive.co2Kg)} kg`,
+        optimized: `${numberFormatter.format(optimized.co2Kg)} kg`,
         percent: improvements.co2Percent,
-        delta: `${improvements.co2Kg >= 0 ? "-" : "+"}${number.format(Math.abs(improvements.co2Kg))} kg`,
+        delta: `${improvements.co2Kg >= 0 ? "-" : "+"}${numberFormatter.format(Math.abs(improvements.co2Kg))} kg`,
       },
       {
         label: "Fuel Efficiency",
-        original: `${number.format(naive.fuelEfficiencyKmPerL)} km/L`,
-        optimized: `${number.format(optimized.fuelEfficiencyKmPerL)} km/L`,
+        original: `${numberFormatter.format(naive.fuelEfficiencyKmPerL)} km/L`,
+        optimized: `${numberFormatter.format(optimized.fuelEfficiencyKmPerL)} km/L`,
         percent: improvements.fuelEfficiencyPercent,
-        delta: `${improvements.fuelEfficiencyKmPerL >= 0 ? "+" : "-"}${number.format(
+        delta: `${improvements.fuelEfficiencyKmPerL >= 0 ? "+" : "-"}${numberFormatter.format(
           Math.abs(improvements.fuelEfficiencyKmPerL),
         )} km/L`,
       },
     ];
   }, [result]);
+
+  const mapStops: MapStop[] = result?.optimizedRoute.stops ?? stops;
+  const mapOrder = result?.optimizedRoute.order;
 
   return (
     <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
@@ -274,7 +386,7 @@ const RoutePlanning = () => {
             <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-[hsl(var(--orange-glow))] to-[hsl(var(--cyan-glow))] rounded-full shadow-[0_0_15px_rgba(255,122,0,0.6)]" />
           </h1>
           <p className="text-[hsl(var(--text-secondary))]">
-            Deterministic demo routing across land, sea, and air with balanced cost/time metrics.
+            Plan, optimize, and visualize multi-modal logistics routes with deterministic AI routing.
           </p>
         </div>
 
@@ -282,21 +394,31 @@ const RoutePlanning = () => {
           <GlassCard glow="cyan" className="space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-white">Route Inputs</h3>
-              <span className="text-xs text-[hsl(var(--text-secondary))]">Demo-friendly defaults</span>
+              <span className="text-xs text-[hsl(var(--text-secondary))]">All values are demo-friendly</span>
             </div>
             
             <div className="space-y-4">
-              <div>
-                <label className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))] mb-2 block">
-                  Origin
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))]">
+                    Origin
+                  </label>
+                  <button
+                    onClick={handleGeocodeOrigin}
+                    disabled={isGeocodingOrigin}
+                    className="flex items-center gap-2 text-xs px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[hsl(var(--cyan-glow))] hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGeocodingOrigin ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                    AI locate
+                  </button>
+                </div>
                 <Input 
                   value={origin.name}
                   onChange={(e) => setOrigin((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Origin name"
                   className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
                 />
-                <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="number"
                     value={origin.lat}
@@ -317,7 +439,7 @@ const RoutePlanning = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))]">
-                    Stops
+                    Delivery Stops
                   </label>
                   <button
                     onClick={addStop}
@@ -327,41 +449,58 @@ const RoutePlanning = () => {
                   </button>
                 </div>
                 <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
-                  {stops.map((stop, index) => (
-                    <div key={stop.id} className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
-                      <div className="flex items-center justify-between text-[hsl(var(--text-secondary))] text-xs">
-                        <span className="flex items-center gap-2">
-                          <MapPin className="w-3 h-3 text-[hsl(var(--cyan-glow))]" />
-                          Stop {index + 1}
-                        </span>
-                        <button onClick={() => removeStop(stop.id)} className="text-white/60 hover:text-red-400" aria-label="Remove stop">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                  {stops.map((stop, index) => {
+                    const isGeocoding = geocodingStops[stop.id];
+                    return (
+                      <div key={stop.id} className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+                        <div className="flex items-center justify-between text-[hsl(var(--text-secondary))] text-xs">
+                          <span className="flex items-center gap-2">
+                            <MapPin className="w-3 h-3 text-[hsl(var(--cyan-glow))]" />
+                            Stop {index + 1}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleGeocodeStop(stop.id)}
+                              disabled={isGeocoding}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[hsl(var(--cyan-glow))] hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isGeocoding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                              AI locate
+                            </button>
+                            <button
+                              onClick={() => removeStop(stop.id)}
+                              className="text-white/60 hover:text-red-400"
+                              aria-label="Remove stop"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <Input
+                          value={stop.name}
+                          onChange={(e) => updateStopValue(stop.id, "name", e.target.value)}
+                          placeholder="Stop name"
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                        />
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <Input
+                            type="number"
+                            value={stop.lat}
+                            onChange={(e) => updateStopValue(stop.id, "lat", e.target.value)}
+                            placeholder="Latitude"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                          />
                       <Input 
-                        value={stop.name}
-                        onChange={(e) => updateStopValue(stop.id, "name", e.target.value)}
-                        placeholder="Stop name"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                            type="number"
+                            value={stop.lng}
+                            onChange={(e) => updateStopValue(stop.id, "lng", e.target.value)}
+                            placeholder="Longitude"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
                       />
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <Input
-                          type="number"
-                          value={stop.lat}
-                          onChange={(e) => updateStopValue(stop.id, "lat", e.target.value)}
-                          placeholder="Latitude"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                        />
-                        <Input
-                          type="number"
-                          value={stop.lng}
-                          onChange={(e) => updateStopValue(stop.id, "lng", e.target.value)}
-                          placeholder="Longitude"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                        />
-                      </div>
                     </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -377,7 +516,7 @@ const RoutePlanning = () => {
                   className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
                 />
                 <p className="text-[hsl(var(--text-secondary))] text-xs">
-                  Weight influences payload limits, fuel, and costs.
+                  Weight influences mode eligibility, fuel burn, and cost per kg.
                 </p>
               </div>
 
@@ -394,20 +533,22 @@ const RoutePlanning = () => {
                         onClick={() => setTransport(option.id)}
                         className={`rounded-xl border px-3 py-2 text-left transition-all ${
                           isActive
-                            ? 'border-[hsl(var(--orange-glow))] bg-[hsl(var(--orange-glow))]/20 text-white shadow-[0_0_20px_rgba(255,122,0,0.25)]'
-                            : 'border-white/10 bg-white/5 text-[hsl(var(--text-secondary))] hover:border-white/25'
+                            ? "border-[hsl(var(--orange-glow))] bg-[hsl(var(--orange-glow))]/20 text-white shadow-[0_0_20px_rgba(255,122,0,0.25)]"
+                            : "border-white/10 bg-white/5 text-[hsl(var(--text-secondary))] hover:border-white/25"
                         }`}
                       >
                         <div className="flex items-center gap-2 text-sm font-semibold">
                           {option.icon}
                           <span>{option.label}</span>
                         </div>
+                        <p className="text-xs mt-1 opacity-70">{option.subtitle}</p>
                       </button>
                     );
                   })}
                 </div>
               </div>
-*** End Patch              <div className="space-y-2">
+
+              <div className="space-y-2">
                 <span className="text-xs uppercase tracking-wide text-[hsl(var(--text-secondary))]">
                   Optimization Strategy
                 </span>
@@ -420,8 +561,8 @@ const RoutePlanning = () => {
                         onClick={() => setStrategy(option.id)}
                         className={`flex items-center justify-between rounded-xl border px-3 py-2 transition-all ${
                           isActive
-                            ? 'border-[hsl(var(--cyan-glow))] bg-[hsl(var(--cyan-glow))]/20 text-white shadow-[0_0_20px_rgba(0,255,255,0.25)]'
-                            : 'border-white/10 bg-white/5 text-[hsl(var(--text-secondary))] hover:border-white/25'
+                            ? "border-[hsl(var(--cyan-glow))] bg-[hsl(var(--cyan-glow))]/20 text-white shadow-[0_0_20px_rgba(0,255,255,0.25)]"
+                            : "border-white/10 bg-white/5 text-[hsl(var(--text-secondary))] hover:border-white/25"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -459,9 +600,7 @@ const RoutePlanning = () => {
                     <AlertTriangle className="w-4 h-4" />
                     <span className="text-sm font-semibold">{error}</span>
                   </div>
-                  {errorReasoning && (
-                    <p className="text-xs text-red-200/80">{errorReasoning}</p>
-                  )}
+                  {errorReasoning && <p className="text-xs text-red-200/80">{errorReasoning}</p>}
                   {recommendation.length > 0 && (
                     <p className="text-xs text-red-200/80">
                       Recommended modes: {recommendation.join(", ")}
@@ -473,6 +612,10 @@ const RoutePlanning = () => {
           </GlassCard>
 
           <GlassCard glow="orange" className="xl:col-span-2 space-y-4">
+            <div className="h-[360px] rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+              <RoutePlannerMap origin={origin} stops={mapStops} optimizedOrder={mapOrder} />
+            </div>
+
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-white">Route Overview</h3>
               <span className="text-xs text-[hsl(var(--text-secondary))]">
@@ -486,7 +629,7 @@ const RoutePlanning = () => {
               <GlassCard glow="orange" className="bg-white/5 border border-white/10">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Total Trip Cost</p>
                 <p className="text-2xl font-semibold text-white">
-                  {result ? `$${number.format(result.optimizedRoute.totalCostUSD)}` : "—"}
+                  {result ? `$${numberFormatter.format(result.optimizedRoute.totalCostUSD)}` : "—"}
                 </p>
                 {result && (
                   <p
@@ -494,7 +637,7 @@ const RoutePlanning = () => {
                       result.comparison.improvements.costPercent >= 0 ? "text-green-400" : "text-red-400"
                     }`}
                   >
-                    {result.comparison.improvements.costUSD >= 0 ? "Saved" : "Added"} ${number.format(
+                    {result.comparison.improvements.costUSD >= 0 ? "Saved" : "Added"} ${numberFormatter.format(
                       Math.abs(result.comparison.improvements.costUSD),
                     )}
                   </p>
@@ -504,21 +647,21 @@ const RoutePlanning = () => {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Distance</p>
                 <p className="text-lg font-semibold text-white">
-                  {result ? `${number.format(result.optimizedRoute.totalDistanceKm)} km` : "—"}
+                  {result ? `${numberFormatter.format(result.optimizedRoute.totalDistanceKm)} km` : "—"}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Estimated Time</p>
                 <p className="text-lg font-semibold text-white">
-                  {result ? `${number.format(result.optimizedRoute.totalTimeHr)} hr` : "—"}
+                  {result ? `${numberFormatter.format(result.optimizedRoute.totalTimeHr)} hr` : "—"}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Fuel Used</p>
                 <p className="text-lg font-semibold text-white">
-                  {result ? `${number.format(result.optimizedRoute.fuelUsedLiters)} L` : "—"}
+                  {result ? `${numberFormatter.format(result.optimizedRoute.fuelUsedLiters)} L` : "—"}
                 </p>
               </div>
             </div>
@@ -536,43 +679,41 @@ const RoutePlanning = () => {
                     </span>
                     <span className="text-sm text-[hsl(var(--text-secondary))] flex items-center gap-2">
                       {result ? result.optimizedRoute.transportIcon : "🚚"}
-                      {result
-                        ? result.optimizedRoute.transportMode
-                        : transportOptions.find((opt) => opt.id === transport)?.label}
+                      {result ? result.optimizedRoute.transportMode : transportOptions.find((o) => o.id === transport)?.label}
                     </span>
                     <span className="text-sm text-[hsl(var(--text-secondary))]">
-                      {integer.format(weightKg)} kg cargo
+                      {integerFormatter.format(weightKg)} kg cargo
                     </span>
                   </div>
                   <p className="text-[hsl(var(--text-secondary))] text-sm leading-relaxed">
                     {result
                       ? result.optimizedRoute.reason
-                      : "Select stops, weights, transport, and strategy then generate an optimized demo route."}
+                      : "Select stops, transport mode, and strategy to generate an optimized route with consistent demo metrics."}
                   </p>
                   {result && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">Cost / kg</p>
                         <p className="text-white font-semibold">
-                          ${number.format(result.optimizedRoute.costPerKgUSD)}
+                          ${numberFormatter.format(result.optimizedRoute.costPerKgUSD)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">Fuel cost</p>
                         <p className="text-white font-semibold">
-                          ${number.format(result.optimizedRoute.fuelCostUSD)}
+                          ${numberFormatter.format(result.optimizedRoute.fuelCostUSD)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">CO₂ emitted</p>
                         <p className="text-white font-semibold">
-                          {number.format(result.optimizedRoute.co2Kg)} kg
+                          {numberFormatter.format(result.optimizedRoute.co2Kg)} kg
                         </p>
                       </div>
                       <div className="rounded-lg bg-white/5 border border-white/10 p-3">
                         <p className="text-[hsl(var(--text-secondary))]">Fuel efficiency</p>
                         <p className="text-white font-semibold">
-                          {number.format(result.optimizedRoute.fuelEfficiencyKmPerL)} km/L
+                          {numberFormatter.format(result.optimizedRoute.fuelEfficiencyKmPerL)} km/L
                         </p>
                   </div>
                   </div>
@@ -580,7 +721,8 @@ const RoutePlanning = () => {
                 </div>
               </div>
             </div>
-*** End Patch            <div className="space-y-3">
+
+            <div className="space-y-3">
               <h4 className="text-sm font-semibold text-white flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-[hsl(var(--cyan-glow))]" />
                 Before & After Comparison
@@ -595,8 +737,8 @@ const RoutePlanning = () => {
                         <span className="text-white font-semibold">{card.optimized}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
-                        <span className={`${card.percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {card.percent >= 0 ? '-' : '+'}{number.format(Math.abs(card.percent))}%
+                        <span className={`${card.percent >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {card.percent >= 0 ? "-" : "+"}{numberFormatter.format(Math.abs(card.percent))}%
                         </span>
                         <span className="text-white/80">{card.delta}</span>
                       </div>
@@ -616,7 +758,7 @@ const RoutePlanning = () => {
                 <h4 className="text-sm font-semibold text-white">Stop Order</h4>
               </div>
               <div className="flex flex-wrap gap-3">
-                {(result ? result.optimizedRoute.order : stops.map((stop) => stop.name || 'Stop')).map((name, idx) => (
+                {(result ? result.optimizedRoute.order : stops.map((stop) => stop.name || "Stop")).map((name, idx) => (
                   <span
                     key={`${name}-${idx}`}
                     className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/10 border border-white/15 text-white flex items-center gap-2"
@@ -642,25 +784,25 @@ const RoutePlanning = () => {
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>Total Distance</p>
                   <p className="text-white text-lg font-semibold">
-                    {number.format(result.optimizedRoute.totalDistanceKm)} km
+                    {numberFormatter.format(result.optimizedRoute.totalDistanceKm)} km
                   </p>
                 </div>
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>ETA</p>
                   <p className="text-white text-lg font-semibold">
-                    {number.format(result.optimizedRoute.totalTimeHr)} hr
+                    {numberFormatter.format(result.optimizedRoute.totalTimeHr)} hr
                   </p>
                 </div>
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>Fuel Used</p>
                   <p className="text-white text-lg font-semibold">
-                    {number.format(result.optimizedRoute.fuelUsedLiters)} L
+                    {numberFormatter.format(result.optimizedRoute.fuelUsedLiters)} L
                   </p>
                 </div>
                 <div className="rounded-xl bg-white/5 border border-white/10 p-3">
                   <p>CO₂ Output</p>
                   <p className="text-white text-lg font-semibold">
-                    {number.format(result.optimizedRoute.co2Kg)} kg
+                    {numberFormatter.format(result.optimizedRoute.co2Kg)} kg
                   </p>
                 </div>
               </div>
@@ -696,21 +838,21 @@ const RoutePlanning = () => {
                 <Clock className="w-5 h-5 mx-auto mb-1 text-[hsl(var(--orange-glow))]" />
                 <p className="text-[hsl(var(--text-secondary))]">Time</p>
                 <p className="text-sm font-semibold text-white">
-                  {result ? `${number.format(result.comparison.improvements.timePercent)}%` : "—"}
+                  {result ? `${numberFormatter.format(result.comparison.improvements.timePercent)}%` : "—"}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
                 <Fuel className="w-5 h-5 mx-auto mb-1 text-[hsl(var(--cyan-glow))]" />
                 <p className="text-[hsl(var(--text-secondary))]">Fuel</p>
                 <p className="text-sm font-semibold text-white">
-                  {result ? `${number.format(result.comparison.improvements.fuelPercent)}%` : "—"}
+                  {result ? `${numberFormatter.format(result.comparison.improvements.fuelPercent)}%` : "—"}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
                 <Leaf className="w-5 h-5 mx-auto mb-1 text-green-400" />
                 <p className="text-[hsl(var(--text-secondary))]">Eco</p>
                 <p className="text-sm font-semibold text-white">
-                  {result ? `${number.format(result.comparison.improvements.co2Percent)}%` : "—"}
+                  {result ? `${numberFormatter.format(result.comparison.improvements.co2Percent)}%` : "—"}
                 </p>
               </div>
             </div>
@@ -733,7 +875,6 @@ const RoutePlanning = () => {
         </div>
 
         {result && (
-          <GlassCard glow="cyan" className="spaceραπε***EOF        {result && (
           <GlassCard glow="cyan" className="space-y-4">
             <h3 className="text-lg font-semibold text-white">Detailed Comparison</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-[hsl(var(--text-secondary))]">
@@ -741,27 +882,39 @@ const RoutePlanning = () => {
                 <p className="text-xs uppercase tracking-wide">Original Route</p>
                 <div className="flex items-center gap-2 text-white text-lg font-semibold">
                   <DollarSign className="w-4 h-4" />
-                  ${number.format(result.comparison.naive.totalCostUSD)}
+                  ${numberFormatter.format(result.comparison.naive.totalCostUSD)}
                 </div>
-                <p>Distance: {number.format(result.comparison.naive.totalDistanceKm)} km</p>
-                <p>ETA: {number.format(result.comparison.naive.totalTimeHr)} hr</p>
+                <p>Distance: {numberFormatter.format(result.comparison.naive.totalDistanceKm)} km</p>
+                <p>ETA: {numberFormatter.format(result.comparison.naive.totalTimeHr)} hr</p>
                   </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                 <p className="text-xs uppercase tracking-wide">Optimized Route</p>
                 <div className="flex items-center gap-2 text-white text-lg font-semibold">
                   <DollarSign className="w-4 h-4" />
-                  ${number.format(result.comparison.optimized.totalCostUSD)}
+                  ${numberFormatter.format(result.comparison.optimized.totalCostUSD)}
                 </div>
-                <p>Distance: {number.format(result.comparison.optimized.totalDistanceKm)} km</p>
-                <p>ETA: {number.format(result.comparison.optimized.estimatedTimeHr)} hr</p>
+                <p>Distance: {numberFormatter.format(result.comparison.optimized.totalDistanceKm)} km</p>
+                <p>ETA: {numberFormatter.format(result.comparison.optimized.estimatedTimeHr)} hr</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                 <p className="text-xs uppercase tracking-wide">Savings Snapshot</p>
-                <p className={`text-lg font-semibold ${result.comparison.improvements.costUSD >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {result.comparison.improvements.costUSD >= 0 ? 'Saved' : 'Added'} ${number.format(Math.abs(result.comparison.improvements.costUSD))}
+                <p
+                  className={`text-lg font-semibold ${
+                    result.comparison.improvements.costUSD >= 0 ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {result.comparison.improvements.costUSD >= 0 ? "Saved" : "Added"} ${numberFormatter.format(
+                    Math.abs(result.comparison.improvements.costUSD),
+                  )}
                 </p>
-                <p>Fuel Δ: {result.comparison.improvements.fuelLiters >= 0 ? '-' : '+'}{number.format(Math.abs(result.comparison.improvements.fuelLiters))} L</p>
-                <p>CO₂ Δ: {result.comparison.improvements.co2Kg >= 0 ? '-' : '+'}{number.format(Math.abs(result.comparison.improvements.co2Kg))} kg</p>
+                <p>
+                  Fuel Δ: {result.comparison.improvements.fuelLiters >= 0 ? "-" : "+"}
+                  {numberFormatter.format(Math.abs(result.comparison.improvements.fuelLiters))} L
+                </p>
+                <p>
+                  CO₂ Δ: {result.comparison.improvements.co2Kg >= 0 ? "-" : "+"}
+                  {numberFormatter.format(Math.abs(result.comparison.improvements.co2Kg))} kg
+                </p>
               </div>
           </div>
         </GlassCard>
