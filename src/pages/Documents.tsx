@@ -22,6 +22,24 @@ import {
   TMSSendResponse,
 } from "@/types/documents";
 
+const SAMPLE_DOCUMENTS: { name: string; content: string; type: string }[] = [
+  {
+    name: "sample_bol.txt",
+    type: "text/plain",
+    content: `BILL OF LADING\n\nBOL Number: BOL-2025-001234\nDate: November 3, 2025\n\nSHIPPER INFORMATION\nABC Manufacturing Company\n1500 Industrial Parkway\nChicago, IL 60607\nPhone: (312) 555-0100\n\nCONSIGNEE INFORMATION\nXYZ Distribution Center\n2800 Warehouse Boulevard\nDallas, TX 75201\nPhone: (214) 555-0200\n\nSHIPMENT DETAILS\nPickup Address: 1500 Industrial Parkway, Chicago, IL 60607\nPickup Date: November 10, 2025\nDelivery Address: 2800 Warehouse Boulevard, Dallas, TX 75201\nDelivery Date: November 12, 2025\n\nFREIGHT DESCRIPTION\nCommodity: Electronics - Computer Components\nWeight: 15,000 lbs\nRate: $1,562.50\nReference: PRO-9876543`,
+  },
+  {
+    name: "sample_rate_confirmation.txt",
+    type: "text/plain",
+    content: `RATE CONFIRMATION\n\nConfirmation Number: RC-2025-5678\nDate Issued: November 3, 2025\n\nSHIPPER: Global Auto Parts Manufacturing Inc.\nRECEIVER: Premium Auto Distributors LLC\nPickup: Detroit, MI (Nov 8, 2025)\nDelivery: Atlanta, GA (Nov 10, 2025)\nCommodity: Automotive Parts\nWeight: 22,500 lbs\nRate: $2,578.00\nReference: PO-AUTO-2025-3344`,
+  },
+  {
+    name: "sample_invoice.csv",
+    type: "text/csv",
+    content: `field,value\nshipper,Acme Logistics\nconsignee,Metro Stores\npickupAddress,445 Industrial Rd, Memphis TN\ndeliveryAddress,999 Commerce Blvd, Orlando FL\npickupDate,2025-11-14\ndeliveryDate,2025-11-16\nweight,32000 lbs\nrate,$1,950.00\nreferenceNumber,INV-556677\ncommodity,General Merchandise`,
+  },
+];
+
 const statusConfig = {
   success: {
     label: "Complete",
@@ -111,6 +129,28 @@ const Documents = () => {
     event.target.value = "";
   }, []);
 
+  const handleAddSampleDocuments = useCallback(() => {
+    const samples = SAMPLE_DOCUMENTS.map((sample) => {
+      try {
+        return new File([sample.content], sample.name, { type: sample.type });
+      } catch {
+        const blob = new Blob([sample.content], { type: sample.type });
+        return Object.assign(blob, { name: sample.name, lastModified: Date.now() }) as File;
+      }
+    });
+
+    setSelectedFiles((prev) => {
+      const existingNames = new Set(prev.map((file) => file.name));
+      const filtered = samples.filter((sample) => !existingNames.has(sample.name));
+      if (filtered.length === 0) {
+        setErrorMessage("Sample documents already added to the queue.");
+        return prev;
+      }
+      setErrorMessage(null);
+      return [...prev, ...filtered];
+    });
+  }, []);
+
   const removeFile = useCallback((index: number) => {
     setSelectedFiles((prev) => prev.filter((_, idx) => idx !== index));
   }, []);
@@ -125,7 +165,7 @@ const Documents = () => {
 
   const handleProcessDocuments = useCallback(async () => {
     if (selectedFiles.length === 0) {
-      setErrorMessage("Please upload at least one PDF, DOCX, or TXT document.");
+      setErrorMessage("Please upload at least one PDF, DOCX, TXT, or CSV document.");
       return;
     }
 
@@ -296,7 +336,7 @@ const Documents = () => {
         <div className="space-y-2 animate-fade-in">
           <h1 className="text-4xl font-bold text-white">AI Document Automation</h1>
           <p className="text-[hsl(var(--text-secondary))]">
-            Upload logistics documents, extract structured data, and merge duplicates automatically.
+            Upload logistics documents, extract structured data, merge duplicates, and send consolidated loads to TMS.
           </p>
         </div>
 
@@ -308,23 +348,34 @@ const Documents = () => {
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           <GlassCard className="space-y-4 xl:col-span-1" glow="cyan">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <h3 className="text-xl font-bold text-white">Upload Documents</h3>
-              <GlowButton variant="outline" className="px-4 py-2 text-xs" onClick={resetWorkflow}>
-                Reset
-              </GlowButton>
+              <div className="flex items-center gap-2 flex-wrap">
+                <GlowButton variant="outline" className="px-4 py-2 text-xs" onClick={resetWorkflow}>
+                  Reset
+                </GlowButton>
+                <GlowButton
+                  variant="secondary"
+                  className="px-4 py-2 text-xs"
+                  onClick={handleAddSampleDocuments}
+                >
+                  Add Sample Documents
+                </GlowButton>
+              </div>
             </div>
 
             <label className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-center cursor-pointer hover:bg-white/10 transition-all">
               <Upload className="w-8 h-8 text-white/80" />
               <div className="space-y-1">
                 <p className="text-white font-medium">Drag & drop or click to upload</p>
-                <p className="text-xs text-[hsl(var(--text-secondary))]">Supports PDF, DOCX, TXT (20MB max each)</p>
+                <p className="text-xs text-[hsl(var(--text-secondary))]">
+                  Supports PDF, DOCX, TXT, CSV (20MB max each)
+                </p>
               </div>
               <input
                 type="file"
                 multiple
-                accept=".pdf,.doc,.docx,.txt"
+                accept=".pdf,.doc,.docx,.txt,.csv"
                 className="hidden"
                 onChange={handleFileInput}
               />
@@ -363,6 +414,7 @@ const Documents = () => {
               variant="primary"
               className="w-full justify-center flex items-center gap-2"
               onClick={handleProcessDocuments}
+              disabled={isProcessing}
             >
               {isProcessing ? (
                 <>
@@ -378,7 +430,16 @@ const Documents = () => {
           <GlassCard className="space-y-4 xl:col-span-3" glow="orange">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <h3 className="text-xl font-bold text-white">Processing Summary</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <GlowButton
+                  variant="secondary"
+                  className="flex items-center gap-2 px-4 py-2"
+                  onClick={handleSendToTms}
+                  disabled={isSending || !successfulLoads.length}
+                >
+                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Send All to TMS
+                </GlowButton>
                 <button
                   className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                     viewMode === "cards"
@@ -563,15 +624,9 @@ const Documents = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-white">Extracted Load Details</h3>
               <div className="flex items-center gap-2">
-                <GlowButton
-                  variant="secondary"
-                  className="flex items-center gap-2"
-                  onClick={handleSendToTms}
-                  disabled={isSending || !successfulLoads.length}
-                >
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Send to TMS
-                </GlowButton>
+                <span className="text-xs text-[hsl(var(--text-secondary))]">
+                  {successfulLoads.length} load(s) ready to send
+                </span>
               </div>
             </div>
 
@@ -625,7 +680,7 @@ const Documents = () => {
                 <div>
                   <p className="text-white font-semibold">Minutes saved</p>
                   <p className="text-xs text-[hsl(var(--text-secondary))]">
-                    Automate manual data entry for BOLs, rate confirmations, and invoices.
+                    Automate manual data entry for BOLs, rate confirmations, invoices, and CSV manifests.
                   </p>
                 </div>
               </div>

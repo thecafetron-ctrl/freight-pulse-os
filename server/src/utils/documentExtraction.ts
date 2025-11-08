@@ -90,7 +90,7 @@ export async function readDocument(buffer: Buffer, filename: string): Promise<st
     return value || '';
   }
 
-  if (ext === '.txt') {
+  if (ext === '.txt' || ext === '.csv') {
     return buffer.toString('utf-8');
   }
 
