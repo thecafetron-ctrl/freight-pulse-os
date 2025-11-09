@@ -21,8 +21,12 @@ type ChatAssistantPayload = {
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours
 
+const todayIso = new Date().toISOString().split('T')[0];
+
 const systemPrompt = `
 You are "FreightPulse Concierge", an elite logistics quoting copilot.
+Today's date is ${todayIso} (YYYY-MM-DD). Use this when interpreting relative phrases such as "tomorrow".
+
 Always respond with valid JSON using this schema:
 {
   "assistant_message": "plain-language guidance for the shipper, short paragraphs only",
@@ -49,6 +53,7 @@ Instructions:
 - In assistant_message, ask for ONE missing detail at a time. Do not list every field collected so far—only reference the specific detail you still need or confirm just-captured information.
 - assistant_message must not contain JSON, only conversational guidance.
 - Keep responses concise, professional, and proactive.
+- Always express dates in ISO format (YYYY-MM-DD) using today's date above for reference when computing relative dates.
 `;
 
 const quoteSystemPrompt = `
@@ -77,9 +82,43 @@ const normalizeSessionId = (value: unknown): string | null => {
   return trimmed.length >= 8 ? trimmed : null;
 };
 
+const startOfToday = new Date(todayIso);
+
+const addDays = (date: Date, days: number): Date => {
+  const clone = new Date(date);
+  clone.setDate(clone.getDate() + days);
+  return clone;
+};
+
+const convertRelativeDate = (value: string): string | null => {
+  const lower = value.toLowerCase().trim();
+  if (!lower) {
+    return null;
+  }
+
+  if (/\btoday\b/.test(lower)) {
+    return startOfToday.toISOString().split('T')[0];
+  }
+
+  if (/\btom+?or+?row\b/.test(lower) || /\btmrw\b/.test(lower) || /\btmr\b/.test(lower)) {
+    return addDays(startOfToday, 1).toISOString().split('T')[0];
+  }
+
+  if (/\byesterday\b/.test(lower)) {
+    return addDays(startOfToday, -1).toISOString().split('T')[0];
+  }
+
+  return null;
+};
+
 const normalizeDateValue = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed) return trimmed;
+
+  const relative = convertRelativeDate(trimmed);
+  if (relative) {
+    return relative;
+  }
 
   const parsed = new Date(trimmed);
   if (Number.isNaN(parsed.getTime())) {
