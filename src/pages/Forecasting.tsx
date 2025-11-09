@@ -47,6 +47,11 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import { API_BASE_URL } from "@/lib/api";
+
+const API_ROOT = `${API_BASE_URL.replace(/\/+$/, "")}/api`;
+
+const apiPath = (path: string) => `${API_ROOT}${path}`;
 
 interface HistoricalPoint {
   week: string;
@@ -143,8 +148,6 @@ interface AlertsResponse {
   alerts: Anomaly[];
   error?: string;
 }
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 const FALLBACK_LANES: LaneData[] = (() => {
   const createHistory = (base: number, amplitude: number, phase: number): HistoricalPoint[] => {
@@ -322,7 +325,7 @@ const Forecasting = () => {
   useEffect(() => {
     const loadMockData = async () => {
       try {
-        const response = await fetch(`${API_BASE}/mockdata`);
+        const response = await fetch(apiPath("/mockdata"));
         const data: MockDataResponse = await response.json();
         if (!data.success) throw new Error(data.error || "Failed to fetch mock data");
         setLanes(data.data);
@@ -379,7 +382,7 @@ const Forecasting = () => {
     let laneData: LaneData | null = null;
 
     try {
-      const response = await fetch(`${API_BASE}/custom-route`, {
+      const response = await fetch(apiPath("/custom-route"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -428,7 +431,7 @@ const Forecasting = () => {
     try {
       let reply: string | null = null;
       try {
-        const response = await fetch(`${API_BASE}/forecast/chat`, {
+        const response = await fetch(apiPath("/forecast/chat"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -543,7 +546,7 @@ const Forecasting = () => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/accuracy?lane=${encodeURIComponent(lane)}`);
+      const response = await fetch(`${apiPath("/accuracy")}?lane=${encodeURIComponent(lane)}`);
       const data: AccuracyResponse = await response.json();
       if (!data.success) throw new Error(data.error || "Failed to compute accuracy");
       setAccuracyData({ metrics: data.metrics, rating: data.rating, history: data.history || [] });
@@ -574,7 +577,7 @@ const Forecasting = () => {
     }
     try {
       const response = await fetch(
-        `${API_BASE}/alerts?lanes=${lanesToCheck.map((lane) => encodeURIComponent(lane)).join(",")}`,
+        `${apiPath("/alerts")}?lanes=${lanesToCheck.map((lane) => encodeURIComponent(lane)).join(",")}`,
       );
       const data: AlertsResponse = await response.json();
       if (!data.success) throw new Error(data.error || "Failed to load alerts");
@@ -602,7 +605,7 @@ const Forecasting = () => {
         const laneData = laneLookup.get(lane);
         if (!laneData) continue;
 
-        const response = await fetch(`${API_BASE}/forecast`, {
+        const response = await fetch(apiPath("/forecast"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lane, history: laneData.history, horizon }),
@@ -733,7 +736,7 @@ const Forecasting = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/forecast/scenario`, {
+      const response = await fetch(apiPath("/forecast/scenario"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lane, scenario: scenarioText.trim(), horizon, history: laneData.history }),

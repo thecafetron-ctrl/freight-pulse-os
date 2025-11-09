@@ -8,6 +8,11 @@ import { VehiclesPanel } from "@/components/VehiclesPanel";
 import { AddVehicleDialog } from "@/components/AddVehicleDialog";
 import { extendedMockLoads, extendedMockVehicles } from "@/data/extendedMockData";
 import type { Load, Vehicle, Match, MatchApiResponse } from "@/types/loadMatching";
+import { API_BASE_URL } from "@/lib/api";
+
+const API_ROOT = `${API_BASE_URL.replace(/\/+$/, "")}/api`;
+
+const apiPath = (path: string) => `${API_ROOT}${path}`;
 
 const LoadMatching = () => {
   const [loads, setLoads] = useState<Load[]>(extendedMockLoads);
@@ -43,7 +48,7 @@ const LoadMatching = () => {
     setSelectedLoad(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/match', {
+      const response = await fetch(apiPath("/match"), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loads, trucks: vehicles }),
@@ -55,7 +60,7 @@ const LoadMatching = () => {
       setMatches(data.matches);
       setLastGenerated(new Date().toLocaleTimeString());
     } catch (err: any) {
-      setError(err.message || 'Backend connection failed. Ensure server is running on port 3001.');
+      setError(err.message || 'Backend connection failed. Ensure the API service is available.');
     } finally {
       setLoading(false);
     }
@@ -69,7 +74,7 @@ const LoadMatching = () => {
     setSelectedLoad(load);
 
     try {
-      const response = await fetch('http://localhost:3001/api/match', {
+      const response = await fetch(apiPath("/match"), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loads: [load], trucks: vehicles }),
@@ -127,7 +132,7 @@ const LoadMatching = () => {
     setSelectedVehicle(vehicle);
 
     try {
-      const response = await fetch('http://localhost:3001/api/find-loads', {
+      const response = await fetch(apiPath("/find-loads"), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vehicle, loads }),

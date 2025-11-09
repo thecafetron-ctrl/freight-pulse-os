@@ -3,6 +3,8 @@ import { createApp } from "../../server/src/app";
 
 const app = createApp();
 
-export const handler = serverless(app);
+export const handler = serverless(app, {
+  basePath: "/.netlify/functions/server",
+});
 
 
