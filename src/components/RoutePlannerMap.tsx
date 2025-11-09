@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { motion } from "framer-motion";
+import { getJson } from "@/lib/api";
 
 export interface MapStop {
   id?: string;
@@ -30,11 +31,7 @@ const RoutePlannerMap = ({ origin, stops, optimizedOrder }: RoutePlannerMapProps
     let isMounted = true;
     const loadToken = async () => {
       try {
-        const response = await fetch("/api/config/mapbox-token");
-        if (!response.ok) {
-          throw new Error(`Failed to fetch Mapbox token: ${response.statusText}`);
-        }
-        const payload: { success: boolean; token: string | null } = await response.json();
+        const payload = await getJson<{ success: boolean; token: string | null }>("/api/config/mapbox-token");
         if (!isMounted) return;
         if (payload.success && payload.token) {
           setMapboxToken(payload.token);
