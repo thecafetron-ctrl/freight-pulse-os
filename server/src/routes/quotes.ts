@@ -46,6 +46,7 @@ Instructions:
 - Preserve and refine previously collected data; do not delete fields unless the user corrects them.
 - If a field is missing, leave it out of collected_data and include a friendly label in missing_fields.
 - Set ready_to_quote true only when origin, destination, shipment_date, freight_type, weight, and service_level are fully captured.
+- In assistant_message, ask for ONE missing detail at a time. Do not list every field collected so far—only reference the specific detail you still need or confirm just-captured information.
 - assistant_message must not contain JSON, only conversational guidance.
 - Keep responses concise, professional, and proactive.
 `;
@@ -76,6 +77,18 @@ const normalizeSessionId = (value: unknown): string | null => {
   return trimmed.length >= 8 ? trimmed : null;
 };
 
+const normalizeDateValue = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return trimmed;
+  }
+
+  return parsed.toISOString().split('T')[0];
+};
+
 const sanitizeCollectedData = (input: Record<string, unknown> | undefined): CollectedData => {
   if (!input || typeof input !== 'object') {
     return {};
@@ -95,7 +108,7 @@ const sanitizeCollectedData = (input: Record<string, unknown> | undefined): Coll
     if (!text) {
       return acc;
     }
-    acc[key] = text;
+    acc[key] = key.toLowerCase().includes('date') ? normalizeDateValue(text) : text;
     return acc;
   }, {});
 };
