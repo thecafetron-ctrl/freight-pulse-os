@@ -18,19 +18,46 @@ interface RoutePlannerMapProps {
 
 const FALLBACK_CENTER: [number, number] = [0, 20];
 
-const DEFAULT_MAPBOX_TOKEN =
-  "pk.eyJ1IjoiaGFhcml0aGltcmFuIiwiYSI6ImNtaGxyYmdsOTFrbHIybHM3dDFpM2J6MG8ifQ.N-nGZpXkRbN51S-60oqctA";
-
 const RoutePlannerMap = ({ origin, stops, optimizedOrder }: RoutePlannerMapProps) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [styleReady, setStyleReady] = useState(false);
 
-  const token =
-    (typeof import.meta.env.VITE_MAPBOX_TOKEN === "string" && import.meta.env.VITE_MAPBOX_TOKEN.trim().length > 0
-      ? import.meta.env.VITE_MAPBOX_TOKEN
-      : DEFAULT_MAPBOX_TOKEN);
-  const hasToken = typeof token === "string" && token.trim().length > 0;
+  const [mapboxToken, setMapboxToken] = useState<string>("");
+  const [tokenStatus, setTokenStatus] = useState<"loading" | "ready" | "missing">("loading");
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadToken = async () => {
+      try {
+        const response = await fetch("/api/config/mapbox-token");
+        if (!response.ok) {
+          throw new Error(`Failed to fetch Mapbox token: ${response.statusText}`);
+        }
+        const payload: { success: boolean; token: string | null } = await response.json();
+        if (!isMounted) return;
+        if (payload.success && payload.token) {
+          setMapboxToken(payload.token);
+          setTokenStatus("ready");
+        } else {
+          setTokenStatus("missing");
+        }
+      } catch (error) {
+        console.error(error);
+        if (isMounted) {
+          setTokenStatus("missing");
+        }
+      }
+    };
+
+    loadToken();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const hasToken = tokenStatus === "ready" && mapboxToken.length > 0;
 
   const safeOrigin = useMemo(() => {
     if (!origin || isNaN(origin.lat) || isNaN(origin.lng)) {
@@ -52,7 +79,7 @@ const RoutePlannerMap = ({ origin, stops, optimizedOrder }: RoutePlannerMapProps
   useEffect(() => {
     if (!hasToken || !mapContainer.current || mapRef.current) return;
 
-    mapboxgl.accessToken = token;
+    mapboxgl.accessToken = mapboxToken;
 
     const initialCenter: [number, number] = [safeOrigin.lng ?? FALLBACK_CENTER[0], safeOrigin.lat ?? FALLBACK_CENTER[1]];
 
@@ -75,7 +102,7 @@ const RoutePlannerMap = ({ origin, stops, optimizedOrder }: RoutePlannerMapProps
         mapRef.current = null;
       }
     };
-  }, [hasToken, safeOrigin, token]);
+  }, [hasToken, mapboxToken, safeOrigin]);
 
   useEffect(() => {
     if (!mapRef.current || !styleReady) return;
@@ -178,13 +205,22 @@ const RoutePlannerMap = ({ origin, stops, optimizedOrder }: RoutePlannerMapProps
   if (!hasToken) {
     return (
       <div className="w-full h-full bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center p-10">
-        <h3 className="text-lg font-semibold text-white mb-2">Map Visualization Disabled</h3>
-        <p className="text-sm text-white/60 mb-3">
-          Add your Mapbox token to enable the live route map.
-        </p>
-        <code className="px-3 py-2 rounded-lg bg-white/10 text-xs text-white/80">
-          VITE_MAPBOX_TOKEN=pk...
-        </code>
+        {tokenStatus === "loading" ? (
+          <>
+            <h3 className="text-lg font-semibold text-white mb-2">Loading Map…</h3>
+            <p className="text-sm text-white/60">Fetching Mapbox configuration</p>
+          </>
+        ) : (
+          <>
+            <h3 className="text-lg font-semibold text-white mb-2">Map Visualization Disabled</h3>
+            <p className="text-sm text-white/60 mb-3">
+              Add your Mapbox token to enable the live route map.
+            </p>
+            <code className="px-3 py-2 rounded-lg bg-white/10 text-xs text-white/80">
+              MAPBOX_TOKEN=pk...
+            </code>
+          </>
+        )}
       </div>
     );
   }

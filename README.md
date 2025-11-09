@@ -251,6 +251,7 @@ Create a `.env` file in the root:
 
 ```env
 OPENAI_API_KEY=sk-proj-your-api-key-here
+MAPBOX_TOKEN=pk.your-mapbox-token
 PORT=3001
 ```
 

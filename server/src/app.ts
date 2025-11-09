@@ -15,6 +15,7 @@ import customRouteRouter from './routes/customRoute';
 import forecastChatRouter from './routes/forecastChat';
 import documentsRouter from './routes/documents';
 import insightsRouter from './routes/insights';
+import configRouter from './routes/config';
 
 export function createApp(): Application {
   const app: Application = express();
@@ -53,6 +54,7 @@ export function createApp(): Application {
   app.use('/api/forecast/chat', forecastChatRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/insights', insightsRouter);
+  app.use('/api/config', configRouter);
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const status = typeof err === 'object' && err !== null && 'status' in err
