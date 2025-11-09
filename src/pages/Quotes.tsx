@@ -1,5 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { GlowButton } from "@/components/GlowButton";
+import { API_BASE_URL } from "@/lib/api";
 import { Bot, Loader2 } from "lucide-react";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 
@@ -20,7 +21,15 @@ type DemoScenario = {
   message: string;
 };
 
-const API_BASE = import.meta.env.VITE_QUOTE_API_URL || "http://localhost:5000/api";
+const normalizeBase = (value: string) => value.replace(/\/+$/, "");
+
+const API_BASE = (() => {
+  const configured = (import.meta.env.VITE_QUOTE_API_URL || "").trim();
+  if (configured) {
+    return normalizeBase(configured);
+  }
+  return `${normalizeBase(API_BASE_URL)}/api/quotes`;
+})();
 
 const SESSION_ID_PREFIX = "freight-pulse";
 

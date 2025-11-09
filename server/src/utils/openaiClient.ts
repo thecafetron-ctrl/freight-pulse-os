@@ -8,7 +8,7 @@ import OpenAI from 'openai';
 import { Load, Truck, Match } from '../types';
 import { filterVehiclesForLoads } from './vehicleFilter';
 
-// Initialize OpenAI client
+// Initialize OpenAI client (may be lazily validated before use)
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -185,5 +185,16 @@ Return a JSON object with a "matches" array containing all the match objects. Ge
     
     throw new Error(`OpenAI API error: ${error.message}`);
   }
+}
+
+/**
+ * Returns the configured OpenAI client instance after validating the API key.
+ */
+export function getOpenAIClient(): OpenAI {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY not configured');
+  }
+
+  return openai;
 }
 
