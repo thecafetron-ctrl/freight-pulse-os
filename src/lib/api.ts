@@ -1,6 +1,19 @@
-const DEFAULT_API_BASE_URL = import.meta.env.DEV ? 'http://localhost:3001' : '/.netlify/functions/server';
+const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const isBrowser = typeof window !== 'undefined';
+const isLocalRuntime =
+  import.meta.env.DEV ||
+  (isBrowser && ['localhost', '127.0.0.1'].includes(window.location.hostname));
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+const DEFAULT_API_BASE_URL = isLocalRuntime
+  ? 'http://localhost:3001'
+  : '/.netlify/functions/server';
+
+export const API_BASE_URL =
+  isLocalRuntime
+    ? envBaseUrl || DEFAULT_API_BASE_URL
+    : envBaseUrl && !envBaseUrl.includes('localhost')
+      ? envBaseUrl
+      : DEFAULT_API_BASE_URL;
 
 export async function postJson<T>(endpoint: string, payload: unknown, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
