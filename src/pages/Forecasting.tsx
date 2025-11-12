@@ -1156,15 +1156,35 @@ const Forecasting = () => {
               </div>
             </div>
 
-            <div className="h-[420px] rounded-2xl border border-white/5 bg-gradient-to-br from-[hsl(var(--navy-panel))] to-[hsl(var(--navy-medium))] p-4">
+            <div className="h-[280px] sm:h-[350px] lg:h-[420px] rounded-2xl border border-white/5 bg-gradient-to-br from-[hsl(var(--navy-panel))] to-[hsl(var(--navy-medium))] p-2 sm:p-4">
               {chartHasData ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
+                  <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
                     <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-                    <XAxis dataKey="week" stroke="rgba(255,255,255,0.45)" tick={{ fontSize: 11 }} />
-                    <YAxis stroke="rgba(255,255,255,0.45)" tick={{ fontSize: 11 }} />
+                    <XAxis 
+                      dataKey="week" 
+                      stroke="rgba(255,255,255,0.45)" 
+                      tick={{ fontSize: 10 }}
+                      angle={-35}
+                      textAnchor="end"
+                      height={50}
+                      interval="preserveStartEnd"
+                      className="text-[10px] sm:text-xs"
+                    />
+                    <YAxis 
+                      stroke="rgba(255,255,255,0.45)" 
+                      tick={{ fontSize: 10 }}
+                      width={40}
+                      className="text-[10px] sm:text-xs"
+                    />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend verticalAlign="top" height={36} wrapperStyle={{ color: "#e2e8f0" }} />
+                    <Legend 
+                      verticalAlign="top" 
+                      height={28}
+                      wrapperStyle={{ color: "#e2e8f0", fontSize: "10px" }}
+                      iconSize={8}
+                      className="text-[10px] sm:text-xs"
+                    />
                     {selectedLanes.map((lane, index) => {
                       const palette = LANE_COLORS[index % LANE_COLORS.length];
                       return (
@@ -1174,8 +1194,8 @@ const Forecasting = () => {
                             type="monotone"
                             dataKey={`${lane}_actual`}
                             stroke={palette.actual}
-                            strokeWidth={2.5}
-                            dot={{ r: 3 }}
+                            strokeWidth={2}
+                            dot={{ r: 2.5 }}
                             name={`${lane} • Actual`}
                             connectNulls
                           />
@@ -1184,7 +1204,7 @@ const Forecasting = () => {
                             type="monotone"
                             dataKey={`${lane}_forecast`}
                             stroke={palette.forecast}
-                            strokeWidth={2}
+                            strokeWidth={1.5}
                             strokeDasharray="5 5"
                             dot={{ r: 0 }}
                             name={`${lane} • Forecast`}
@@ -1196,7 +1216,7 @@ const Forecasting = () => {
                               type="monotone"
                               dataKey={`${lane}_previous`}
                               stroke={palette.previous}
-                              strokeWidth={1.5}
+                              strokeWidth={1}
                               strokeDasharray="1 8"
                               dot={false}
                               opacity={0.4}

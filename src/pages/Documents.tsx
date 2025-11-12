@@ -333,9 +333,9 @@ const Documents = () => {
   return (
     <div className="min-h-screen bg-[hsl(var(--navy-deep))] pb-12">
       <div className="max-w-[1800px] mx-auto p-6 space-y-6">
-        <div className="space-y-2 animate-fade-in">
-          <h1 className="text-4xl font-bold text-white">AI Document Automation</h1>
-          <p className="text-[hsl(var(--text-secondary))]">
+        <div className="space-y-2 animate-fade-in text-center sm:text-left">
+          <h1 className="text-3xl font-bold text-white sm:text-4xl">AI Document Automation</h1>
+          <p className="text-sm text-[hsl(var(--text-secondary))] sm:text-base">
             Upload logistics documents, extract structured data, merge duplicates, and send consolidated loads to TMS.
           </p>
         </div>
@@ -347,16 +347,16 @@ const Documents = () => {
         )}
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          <GlassCard className="space-y-4 xl:col-span-1" glow="cyan">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <h3 className="text-xl font-bold text-white">Upload Documents</h3>
-              <div className="flex items-center gap-2 flex-wrap">
-                <GlowButton variant="outline" className="px-4 py-2 text-xs" onClick={resetWorkflow}>
+          <GlassCard className="space-y-4 xl:col-span-1 order-2 xl:order-1" glow="cyan">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-xl font-bold text-white text-center sm:text-left">Upload Documents</h3>
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <GlowButton variant="outline" className="text-xs" onClick={resetWorkflow}>
                   Reset
                 </GlowButton>
                 <GlowButton
                   variant="secondary"
-                  className="px-4 py-2 text-xs"
+                  className="text-xs"
                   onClick={handleAddSampleDocuments}
                 >
                   Add Sample Documents
@@ -427,13 +427,13 @@ const Documents = () => {
             </GlowButton>
           </GlassCard>
 
-          <GlassCard className="space-y-4 xl:col-span-3" glow="orange">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <GlassCard className="space-y-6 xl:col-span-3 order-1 xl:order-2" glow="orange">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 text-center lg:text-left">
               <h3 className="text-xl font-bold text-white">Processing Summary</h3>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
                 <GlowButton
                   variant="secondary"
-                  className="flex items-center gap-2 px-4 py-2"
+                  className="flex items-center gap-2"
                   onClick={handleSendToTms}
                   disabled={isSending || !successfulLoads.length}
                 >
@@ -461,7 +461,7 @@ const Documents = () => {
                   <Table className="w-4 h-4 inline mr-2" /> Table
                 </button>
                 <button
-                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-white/5 text-white flex items-center gap-2 hover:bg-white/10"
+                  className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
                   onClick={downloadCsv}
                   disabled={!processedResults.length}
                 >
@@ -616,11 +616,32 @@ const Documents = () => {
                 </table>
               </div>
             )}
+
+            {processedResults.length > 0 && (
+              <div className="space-y-4 xl:hidden">
+                <div className="h-px w-full bg-white/10" />
+                <h4 className="text-lg font-semibold text-white text-center">Selected Load Details</h4>
+                {selectedResult ? (
+                  selectedResult.success ? (
+                    renderLoadDetails(selectedResult.data, !!selectedResult.is_merged)
+                  ) : (
+                    <div className="p-6 rounded-2xl bg-red-500/10 border border-red-500/40 text-red-200">
+                      <p className="font-semibold">Failed to process {selectedResult.filename}</p>
+                      <p className="text-sm mt-2">{selectedResult.error}</p>
+                    </div>
+                  )
+                ) : (
+                  <div className="p-6 rounded-2xl bg-white/5 border border-dashed border-white/10 text-center text-[hsl(var(--text-secondary))]">
+                    Select a load to view the extracted data.
+                  </div>
+                )}
+              </div>
+            )}
           </GlassCard>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <GlassCard className="space-y-4 xl:col-span-2" glow="cyan">
+          <GlassCard className="hidden space-y-4 xl:col-span-2 xl:block" glow="cyan">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-white">Extracted Load Details</h3>
               <div className="flex items-center gap-2">

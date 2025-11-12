@@ -41,26 +41,50 @@ const LoadMatching = () => {
   };
 
   // Generate all matches
+  const BATCH_SIZE = 12;
+
   const generateMatches = async () => {
-    setMatches([]); // Clear old matches first
+    if (!loads.length || !vehicles.length) {
+      setError("Add at least one load and vehicle before generating matches.");
+      return;
+    }
+
+    setMatches([]);
     setLoading(true);
     setError(null);
     setSelectedLoad(null);
+    setSelectedVehicle(null);
+
+    const batches: Load[][] = [];
+    for (let i = 0; i < loads.length; i += BATCH_SIZE) {
+      batches.push(loads.slice(i, i + BATCH_SIZE));
+    }
 
     try {
-      const response = await fetch(apiPath("/match"), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loads, trucks: vehicles }),
-      });
+      const allMatches: Match[] = [];
 
-      if (!response.ok) throw new Error('Failed to generate matches');
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+        const batch = batches[batchIndex];
 
-      const data: MatchApiResponse = await response.json();
-      setMatches(data.matches);
+        const response = await fetch(apiPath("/match"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ loads: batch, trucks: vehicles }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to generate matches");
+        }
+
+        const data: MatchApiResponse = await response.json();
+        allMatches.push(...data.matches);
+
+        setMatches((prev) => [...prev, ...data.matches]);
+      }
+
       setLastGenerated(new Date().toLocaleTimeString());
     } catch (err: any) {
-      setError(err.message || 'Backend connection failed. Ensure the API service is available.');
+      setError(err.message || "Backend connection failed. Ensure the API service is available.");
     } finally {
       setLoading(false);
     }
