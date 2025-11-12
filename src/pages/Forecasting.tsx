@@ -17,6 +17,7 @@ import {
   Minus,
   PlusCircle,
   Send,
+  MapPin,
 } from "lucide-react";
 import {
   Select,
@@ -33,6 +34,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -186,6 +194,24 @@ const FALLBACK_LANES: LaneData[] = (() => {
       destination: "Phoenix, AZ",
       history: createHistory(180, 40, Math.PI / 2),
     },
+    {
+      lane: "Los Angeles, CA → Newark, NJ",
+      origin: "Los Angeles, CA",
+      destination: "Newark, NJ",
+      history: createHistory(200, 35, Math.PI / 3),
+    },
+    {
+      lane: "Seattle, WA → Chicago, IL",
+      origin: "Seattle, WA",
+      destination: "Chicago, IL",
+      history: createHistory(140, 28, Math.PI / 1.8),
+    },
+    {
+      lane: "Miami, FL → Charlotte, NC",
+      origin: "Miami, FL",
+      destination: "Charlotte, NC",
+      history: createHistory(110, 22, Math.PI / 2.6),
+    },
   ];
 })();
 
@@ -321,6 +347,7 @@ const Forecasting = () => {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [laneSheetOpen, setLaneSheetOpen] = useState(false);
 
   useEffect(() => {
     const loadMockData = async () => {
@@ -967,7 +994,32 @@ const Forecasting = () => {
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="lg:hidden">
+                <GlowButton
+                  variant="secondary"
+                  className="w-full items-center justify-center gap-2"
+                  onClick={() => setLaneSheetOpen(true)}
+                >
+                  <MapPin className="w-4 h-4" /> Select Routes
+                </GlowButton>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedLanes.map((lane) => (
+                    <span
+                      key={`chip-${lane}`}
+                      className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-white"
+                    >
+                      {lane.split("→")[0].trim()}
+                    </span>
+                  ))}
+                  {selectedLanes.length === 0 && (
+                    <span className="text-xs text-[hsl(var(--text-secondary))]">
+                      No routes selected yet.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="hidden space-y-3 lg:block">
                 {lanes.map((lane, index) => {
                   const selected = selectedLanes.includes(lane.lane);
                   const palette = LANE_COLORS[index % LANE_COLORS.length];
@@ -1431,6 +1483,79 @@ const Forecasting = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Sheet open={laneSheetOpen} onOpenChange={setLaneSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="flex h-[85vh] flex-col gap-4 border-white/10 bg-[hsl(var(--navy-medium))] text-white sm:max-w-lg"
+        >
+          <SheetHeader>
+            <SheetTitle className="text-white">Select Forecast Routes</SheetTitle>
+            <SheetDescription className="text-[hsl(var(--text-secondary))]">
+              Choose up to three lanes to compare. Your selections update the dashboard instantly.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div className="space-y-3">
+              {lanes.map((lane, index) => {
+                const selected = selectedLanes.includes(lane.lane);
+                const palette = LANE_COLORS[index % LANE_COLORS.length];
+                return (
+                  <button
+                    key={`mobile-${lane.lane}`}
+                    type="button"
+                    onClick={() => toggleLane(lane.lane)}
+                    className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                      selected
+                        ? "border-[hsl(var(--cyan-glow))]/60 bg-[hsl(var(--cyan-glow))]/15 shadow-[0_0_20px_rgba(56,189,248,0.25)]"
+                        : "border-white/10 bg-white/5 hover:border-[hsl(var(--cyan-glow))]/30 hover:bg-white/10"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-white">{lane.lane}</p>
+                        <p className="text-xs text-[hsl(var(--text-secondary))]">
+                          {lane.origin} • {lane.destination}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span
+                          className="h-3 w-3 rounded-full"
+                          style={{ background: palette.actual }}
+                        />
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                            selected
+                              ? "bg-[hsl(var(--cyan-glow))]/20 text-[hsl(var(--cyan-glow))]"
+                              : "bg-white/10 text-[hsl(var(--text-secondary))]"
+                          }`}
+                        >
+                          {selected ? "Selected" : "Tap to add"}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-xs text-[hsl(var(--text-secondary))]">
+            <p>
+              Selected lanes:{" "}
+              <span className="font-semibold text-white">{selectedLanes.length}</span> / 3 · Horizon:{" "}
+              <span className="font-semibold text-white">{horizon}</span> weeks
+            </p>
+            <p className="mt-2">
+              Tap lanes to toggle them on or off. At least one lane must remain selected so the forecast can render.
+            </p>
+          </div>
+
+          <GlowButton className="w-full" onClick={() => setLaneSheetOpen(false)}>
+            Done
+          </GlowButton>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

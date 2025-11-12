@@ -7,12 +7,17 @@ const isLocal =
   hostname === "127.0.0.1";
 
 const resolveApiOrigin = (): string => {
-  if (isLocal) {
-    return envBaseUrl || "http://localhost:3001";
-  }
-  if (envBaseUrl && !envBaseUrl.includes("localhost")) {
+  if (envBaseUrl.length) {
     return envBaseUrl;
   }
+
+  if (isBrowser) {
+    const origin = window.location.origin ?? "";
+    if (isLocal) {
+      return `${origin}/.netlify/functions/server`;
+    }
+  }
+
   return "/.netlify/functions/server";
 };
 

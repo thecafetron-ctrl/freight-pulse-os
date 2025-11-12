@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   Area,
@@ -23,6 +23,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { getFallbackAnalyticsSnapshot } from "@/data/insightsFallback";
 
 interface AnalyticsResponse {
   success: boolean;
@@ -45,6 +46,8 @@ const Analytics = () => {
   const [data, setData] = useState<AnalyticsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const dataRef = useRef<AnalyticsSnapshot | null>(null);
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -54,10 +57,18 @@ const Analytics = () => {
         throw new Error("Failed to load analytics");
       }
       setData(payload.data);
+       dataRef.current = payload.data;
       setError(null);
+      setUsingFallback(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unexpected error loading analytics";
       setError(message);
+      if (!dataRef.current) {
+        const fallback = getFallbackAnalyticsSnapshot();
+        dataRef.current = fallback;
+        setData(fallback);
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -165,6 +176,21 @@ const Analytics = () => {
             Live performance metrics across forecasting, matching, and automation
           </p>
         </div>
+
+        {usingFallback && (
+          <div className="rounded-xl border border-yellow-400/40 bg-yellow-300/10 px-4 py-3 text-xs text-yellow-100 sm:text-sm">
+            Analytics API is currently unavailable
+            {error ? (
+              <>
+                {" "}
+                ({error}).
+              </>
+            ) : (
+              "."
+            )}{" "}
+            Showing McCarthy AI’s curated demo insights to keep the walkthrough seamless.
+          </div>
+        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">

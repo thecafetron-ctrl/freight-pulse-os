@@ -11,12 +11,23 @@ interface FuturisticEarthMapProps {
   matches: Match[];
 }
 
+const MAP_WIDTH = 2000;
+const MAP_HEIGHT = 1000;
+const MAP_OFFSET_X = -22;
+const MAP_OFFSET_Y = 18;
+const FALLBACK_CONNECTION_LIMIT = 60;
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
 // ACCURATE GEOGRAPHIC PROJECTION matched to wireframe PNG (1536x1024 scaled to 2000x1000)
 const project = (lat: number, lon: number) => {
-  // Equirectangular projection with proper aspect ratio
-  const x = (lon + 180) * (2000 / 360);
-  const y = (90 - lat) * (1000 / 180);
-  return { x, y };
+  // Equirectangular projection with minor empirical offsets to align with background wireframe
+  const x = (lon + 180) * (MAP_WIDTH / 360) + MAP_OFFSET_X;
+  const y = (90 - lat) * (MAP_HEIGHT / 180) + MAP_OFFSET_Y;
+  return {
+    x: clamp(x, 0, MAP_WIDTH),
+    y: clamp(y, 0, MAP_HEIGHT),
+  };
 };
 
 // COMPREHENSIVE CITY COORDINATES (All major global cities)
@@ -207,6 +218,43 @@ export const FuturisticEarthMap: React.FC<FuturisticEarthMapProps> = ({ vehicles
     }
   });
 
+  const fallbackConnections =
+    matches.length > 0 || loads.length === 0 || vehicles.length === 0
+      ? []
+      : loads
+          .slice(0, Math.min(loads.length, vehicles.length, FALLBACK_CONNECTION_LIMIT))
+          .map((load, index): Match => {
+            const vehicle = vehicles[index % vehicles.length];
+            return {
+              loadId: load.id,
+              truckId: vehicle.id,
+              matchScore: 55,
+              reason: "Visual connection for preview",
+            };
+          });
+
+  const displayConnections = matches.length > 0 ? matches : fallbackConnections;
+
+  const markerScale = clamp(1 / Math.pow(zoom, 0.45), 0.38, 1.05);
+  const pulseScale = clamp(1 / Math.pow(zoom, 0.35), 0.55, 1.25);
+  const labelVisible = zoom >= 1.2;
+  const labelOffset = 34 * markerScale;
+  const labelFontSize = Math.max(10, 16 * markerScale);
+  const badgeFontSize = Math.max(11, 18 * markerScale);
+  const strokeWidth = Math.max(1.25, 2.4 * markerScale);
+  const connectionStrokeWidth = Math.max(1.4, 2.2 * markerScale);
+  const vehicleOuterRadius = 26 * pulseScale;
+  const vehicleGlowRadius = 18 * markerScale;
+  const vehicleCoreRadius = 9 * markerScale;
+  const loadOuterRadius = 24 * pulseScale;
+  const loadGlowRadius = 18 * markerScale;
+  const loadCoreRadius = 9 * markerScale;
+
+  const vehicleOuterAnim = `${(vehicleOuterRadius * 0.72).toFixed(2)};${(vehicleOuterRadius * 1.18).toFixed(2)};${(vehicleOuterRadius * 0.72).toFixed(2)}`;
+  const vehicleCoreAnim = `${vehicleCoreRadius.toFixed(2)};${(vehicleCoreRadius * 1.22).toFixed(2)};${vehicleCoreRadius.toFixed(2)}`;
+  const loadOuterAnim = `${(loadOuterRadius * 0.7).toFixed(2)};${(loadOuterRadius * 1.15).toFixed(2)};${(loadOuterRadius * 0.7).toFixed(2)}`;
+  const loadCoreAnim = `${loadCoreRadius.toFixed(2)};${(loadCoreRadius * 1.18).toFixed(2)};${loadCoreRadius.toFixed(2)}`;
+
   // Arc path
   const arcPath = (x1: number, y1: number, x2: number, y2: number) => {
     const dx = Math.abs(x2 - x1);
@@ -291,27 +339,27 @@ export const FuturisticEarthMap: React.FC<FuturisticEarthMapProps> = ({ vehicles
                 </defs>
 
                 {/* ARCS */}
-                {matches.map((m, i) => {
+                {displayConnections.map((m, i) => {
                   const load = loads.find(l => l.id === m.loadId);
                   const vehicle = vehicles.find(v => v.id === m.truckId);
                   if (!load || !vehicle) return null;
                   const lCoords = getCoords(load.origin);
                   const vCoords = getCoords(vehicle.location);
                   if (!lCoords || !vCoords) return null;
-                  const color = m.matchScore >= 90 ? '#00E5FF' : m.matchScore >= 70 ? '#FF7A00' : '#FFD700';
                   const pathData = arcPath(lCoords.x, lCoords.y, vCoords.x, vCoords.y);
+                  const color =
+                    m.matchScore >= 90 ? "#22d3ee" : m.matchScore >= 70 ? "#f97316" : "#facc15";
                   return (
-                    <g key={i}>
-                      <path d={pathData} stroke={color} strokeWidth="2.5" fill="none" opacity="0.7" strokeDasharray="8 6" filter="url(#glow)">
-                        <animate attributeName="stroke-dashoffset" from="0" to="-140" dur="4s" repeatCount="indefinite" />
-                      </path>
-                      <circle r="6" fill={color} opacity="1" filter="url(#strongGlow)">
-                        <animateMotion dur="3.5s" repeatCount="indefinite">
-                          <mpath xlinkHref={`#arc-${i}`} />
-                        </animateMotion>
-                      </circle>
-                      <path id={`arc-${i}`} d={pathData} fill="none" opacity="0" />
-                    </g>
+                    <path
+                      key={`arc-${m.loadId}-${m.truckId}-${i}`}
+                      d={pathData}
+                      stroke={color}
+                      strokeWidth={connectionStrokeWidth}
+                      fill="none"
+                      opacity="0.6"
+                      strokeDasharray="6 6"
+                      filter="url(#glow)"
+                    />
                   );
                 })}
 
@@ -327,26 +375,41 @@ export const FuturisticEarthMap: React.FC<FuturisticEarthMapProps> = ({ vehicles
                       key={key} 
                       style={{ cursor: 'pointer' }}
                       onMouseMove={(e) => {
-                        setHoveredLocation({ vehicles: vehs, loads: loadsByLocation[key] || [], position: { x: e.clientX, y: e.clientY - 40 } });
+                        const { clientX, clientY } = e;
+                        setHoveredLocation({
+                          vehicles: vehs,
+                          loads: loadsByLocation[key] || [],
+                          position: { x: clientX + 18, y: clientY - 90 },
+                        });
                       }}
                       onMouseLeave={() => setHoveredLocation(null)}
                     >
-                      <circle cx={coords.x} cy={coords.y} r="24" fill="none" stroke="#FF7A00" strokeWidth="2" opacity="0.3">
-                        <animate attributeName="r" values="16;35;16" dur="2.5s" repeatCount="indefinite" />
+                      <circle cx={coords.x} cy={coords.y} r={vehicleOuterRadius} fill="none" stroke="#FF7A00" strokeWidth={strokeWidth} opacity="0.3">
+                        <animate attributeName="r" values={vehicleOuterAnim} dur="2.5s" repeatCount="indefinite" />
                       </circle>
-                      <circle cx={coords.x} cy={coords.y} r="18" fill="url(#orangeGlow)" opacity="0.6" />
-                      <circle cx={coords.x} cy={coords.y} r="9" fill="#FF7A00" opacity="1" filter="url(#glow)">
-                        {isMatched && <animate attributeName="r" values="9;14;9" dur="1.5s" repeatCount="indefinite" />}
+                      <circle cx={coords.x} cy={coords.y} r={vehicleGlowRadius} fill="url(#orangeGlow)" opacity="0.6" />
+                      <circle cx={coords.x} cy={coords.y} r={vehicleCoreRadius} fill="#FF7A00" opacity="1" filter="url(#glow)">
+                        {isMatched && <animate attributeName="r" values={vehicleCoreAnim} dur="1.5s" repeatCount="indefinite" />}
                       </circle>
-                      <circle cx={coords.x} cy={coords.y} r="5" fill="#FFB380" />
+                      <circle cx={coords.x} cy={coords.y} r={Math.max(3.5, 5 * markerScale)} fill="#FFB380" />
                       {count > 1 && (
                         <>
-                          <circle cx={coords.x} cy={coords.y} r="20" fill="#FF7A00" opacity="0.9" />
-                          <text x={coords.x} y={coords.y + 7} textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">{count}</text>
+                          <circle cx={coords.x} cy={coords.y} r={20 * markerScale} fill="#FF7A00" opacity="0.92" />
+                          <text x={coords.x} y={coords.y + 7 * markerScale} textAnchor="middle" fill="white" fontSize={badgeFontSize} fontWeight="bold">
+                            {count}
+                          </text>
                         </>
                       )}
-                      {zoom >= 2 && (
-                        <text x={coords.x} y={coords.y + 35} textAnchor="middle" fill="#FFB380" fontSize="14" fontWeight="600" filter="url(#glow)">
+                      {labelVisible && (
+                        <text
+                          x={coords.x}
+                          y={coords.y + labelOffset}
+                          textAnchor="middle"
+                          fill="#FFB380"
+                          fontSize={labelFontSize}
+                          fontWeight="600"
+                          filter="url(#glow)"
+                        >
                           {cityName}
                         </text>
                       )}
@@ -365,20 +428,33 @@ export const FuturisticEarthMap: React.FC<FuturisticEarthMapProps> = ({ vehicles
                       key={key} 
                       style={{ cursor: 'pointer' }}
                       onMouseMove={(e) => {
-                        setHoveredLocation({ vehicles: vehiclesByLocation[key] || [], loads: lods, position: { x: e.clientX, y: e.clientY - 40 } });
+                        const { clientX, clientY } = e;
+                        setHoveredLocation({
+                          vehicles: vehiclesByLocation[key] || [],
+                          loads: lods,
+                          position: { x: clientX + 18, y: clientY - 90 },
+                        });
                       }}
                       onMouseLeave={() => setHoveredLocation(null)}
                     >
-                      <circle cx={coords.x} cy={coords.y} r="24" fill="none" stroke="#00E5FF" strokeWidth="2" opacity="0.3">
-                        <animate attributeName="r" values="16;35;16" dur="2s" repeatCount="indefinite" />
+                      <circle cx={coords.x} cy={coords.y} r={loadOuterRadius} fill="none" stroke="#00E5FF" strokeWidth={strokeWidth} opacity="0.28">
+                        <animate attributeName="r" values={loadOuterAnim} dur="2s" repeatCount="indefinite" />
                       </circle>
-                      <circle cx={coords.x} cy={coords.y} r="18" fill="url(#cyanGlow)" opacity="0.6" />
-                      <circle cx={coords.x} cy={coords.y} r="9" fill="#00E5FF" opacity="1" filter="url(#glow)">
-                        {isMatched && <animate attributeName="r" values="9;14;9" dur="1.5s" repeatCount="indefinite" />}
+                      <circle cx={coords.x} cy={coords.y} r={loadGlowRadius} fill="url(#cyanGlow)" opacity="0.58" />
+                      <circle cx={coords.x} cy={coords.y} r={loadCoreRadius} fill="#00E5FF" opacity="1" filter="url(#glow)">
+                        {isMatched && <animate attributeName="r" values={loadCoreAnim} dur="1.5s" repeatCount="indefinite" />}
                       </circle>
-                      <circle cx={coords.x} cy={coords.y} r="5" fill="#66F0FF" />
-                      {zoom >= 2 && (
-                        <text x={coords.x} y={coords.y + 35} textAnchor="middle" fill="#66F0FF" fontSize="14" fontWeight="600" filter="url(#glow)">
+                      <circle cx={coords.x} cy={coords.y} r={Math.max(3, 4.6 * markerScale)} fill="#66F0FF" />
+                      {labelVisible && (
+                        <text
+                          x={coords.x}
+                          y={coords.y + labelOffset}
+                          textAnchor="middle"
+                          fill="#66F0FF"
+                          fontSize={labelFontSize}
+                          fontWeight="600"
+                          filter="url(#glow)"
+                        >
                           {cityName}
                         </text>
                       )}
@@ -395,10 +471,12 @@ export const FuturisticEarthMap: React.FC<FuturisticEarthMapProps> = ({ vehicles
                 <span style={{ color: '#00E5FF', fontWeight: 500 }}>{Object.keys(loadsByLocation).length} loads</span>
                 <div style={{ width: '1px', height: '16px', background: 'rgba(0,191,255,0.3)' }} />
                 <span style={{ color: '#FF7A00', fontWeight: 500 }}>{Object.keys(vehiclesByLocation).length} locations</span>
-                {matches.length > 0 && (
+                {displayConnections.length > 0 && (
                   <>
                     <div style={{ width: '1px', height: '16px', background: 'rgba(0,191,255,0.3)' }} />
-                    <span style={{ color: 'white', fontWeight: 600 }}>{matches.length} connections</span>
+                    <span style={{ color: 'white', fontWeight: 600 }}>
+                      {displayConnections.length} connections
+                    </span>
                   </>
                 )}
                 <div style={{ width: '1px', height: '16px', background: 'rgba(0,191,255,0.3)' }} />

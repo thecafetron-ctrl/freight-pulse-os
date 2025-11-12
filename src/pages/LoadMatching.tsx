@@ -152,11 +152,13 @@ const LoadMatching = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
-      <div className="max-w-[1800px] mx-auto p-6 space-y-6">
+      <div className="app-shell-wide space-y-6 pb-12 pt-6 sm:space-y-8">
         {/* Header */}
         <div className="space-y-2 animate-fade-in">
-          <h1 className="text-4xl font-bold text-white">AI Load Matching</h1>
-          <p className="text-[hsl(var(--text-secondary))]">Intelligent load-to-vehicle matching with AI scoring • {loads.length} loads • {vehicles.length} vehicles</p>
+          <h1 className="leading-tight">AI Load Matching</h1>
+          <p className="text-sm text-[hsl(var(--text-secondary))] sm:text-base">
+            Intelligent load-to-vehicle matching with AI scoring • {loads.length} loads • {vehicles.length} vehicles
+          </p>
         </div>
 
         {/* Error */}
@@ -170,12 +172,12 @@ const LoadMatching = () => {
         )}
 
         {/* 4-Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           
           {/* Column 1: Loads Panel */}
-          <GlassCard className="lg:col-span-1 space-y-4" glow="cyan">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+          <GlassCard className="space-y-4 lg:col-span-1" glow="cyan">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-white">
                 <Package className="w-5 h-5 text-[hsl(var(--cyan-glow))]" />
                 Available Loads ({loads.length})
               </h3>
@@ -185,7 +187,7 @@ const LoadMatching = () => {
               </button>
             </div>
             
-            <div className="space-y-3 max-h-[700px] overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1 sm:max-h-[700px]">
               {loads.map((load) => (
                 <div key={load.id}
                   className={`p-4 rounded-xl transition-all ${
@@ -226,8 +228,8 @@ const LoadMatching = () => {
 
           {/* Columns 2-3: Interactive Map */}
           <GlassCard className="lg:col-span-2" glow="orange">
-              <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">Global Fleet Map</h3>
+              <div className="mb-4 flex items-center justify-between">
+              <h3>Global Fleet Map</h3>
                 <div className="flex items-center gap-3 text-sm">
                   <div className="flex items-center gap-2">
                   <Package className="w-4 h-4 text-[hsl(var(--cyan-glow))]" />
@@ -240,16 +242,16 @@ const LoadMatching = () => {
               </div>
                 </div>
 
-            <div className="relative h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-[#0a1628] via-[#1a2742] to-[#0f1929]">
+            <div className="relative h-[260px] rounded-xl overflow-hidden bg-gradient-to-br from-[#0a1628] via-[#1a2742] to-[#0f1929] sm:h-[320px] lg:h-[500px]">
               <FuturisticEarthMap vehicles={vehicles} loads={loads} matches={matches} />
               </div>
             </GlassCard>
 
           {/* Column 4: Match Results */}
-          <GlassCard className="lg:col-span-1 space-y-4" glow="orange">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xl font-bold text-white">AI Matches ({matches.length})</h3>
-              {lastGenerated && <span className="text-xs text-[hsl(var(--text-secondary))]">{lastGenerated}</span>}
+          <GlassCard className="space-y-4 lg:col-span-1" glow="orange">
+            <div className="mb-2 flex items-center justify-between">
+              <h3>AI Matches ({matches.length})</h3>
+              {lastGenerated && <span className="text-xs text-[hsl(var(--text-secondary))] sm:text-sm">{lastGenerated}</span>}
                 </div>
 
             {selectedLoad && (
@@ -329,18 +331,18 @@ const LoadMatching = () => {
         </div>
 
         {/* Vehicles Panel (Below) */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-center">
           <div className="flex-1">
             <VehiclesPanel vehicles={vehicles} onFindLoads={findLoadsForVehicle} />
           </div>
           <button
             onClick={() => setShowAddVehicle(true)}
-            className="px-6 py-3 rounded-xl bg-[hsl(var(--orange-glow))]/20 hover:bg-[hsl(var(--orange-glow))]/30 border border-[hsl(var(--orange-glow))]/50 transition-all shadow-[0_0_20px_rgba(255,122,0,0.2)] hover:shadow-[0_0_30px_rgba(255,122,0,0.4)]"
+            className="w-full rounded-xl border border-[hsl(var(--orange-glow))]/50 bg-[hsl(var(--orange-glow))]/20 px-6 py-3 text-sm font-semibold text-[hsl(var(--orange-glow))] transition-all shadow-[0_0_20px_rgba(255,122,0,0.2)] hover:bg-[hsl(var(--orange-glow))]/30 hover:shadow-[0_0_30px_rgba(255,122,0,0.4)] sm:text-base lg:w-auto"
             title="Add Vehicle"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2">
               <Plus className="w-5 h-5 text-[hsl(var(--orange-glow))]" />
-              <span className="text-[hsl(var(--orange-glow))] font-semibold">Add Vehicle</span>
+              <span>Add Vehicle</span>
             </div>
           </button>
         </div>

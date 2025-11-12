@@ -1,6 +1,7 @@
 import { GlassCard } from "@/components/GlassCard";
 import { GlowButton } from "@/components/GlowButton";
 import { API_BASE_URL } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { Bot, Loader2 } from "lucide-react";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 
@@ -416,22 +417,22 @@ const Quotes = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
-      <div className="max-w-[1800px] mx-auto p-6 space-y-6">
-        <div className="space-y-2 animate-fade-in">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-white/70">
+      <div className="app-shell-wide space-y-6 pb-12 pt-6 sm:space-y-8">
+        <div className="space-y-3 animate-fade-in">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[0.65rem] uppercase tracking-[0.3em] text-white/70 sm:text-xs">
             <span className="h-2 w-2 rounded-full bg-[hsl(var(--orange-glow))]" />
             Freight Pulse • Luxury Quoting Suite
           </div>
-          <h1 className="text-4xl font-bold text-white">AI Quote Generator</h1>
-          <p className="text-[hsl(var(--text-secondary))]">
+          <h1 className="leading-tight">AI Quote Generator</h1>
+          <p className="max-w-2xl text-sm text-[hsl(var(--text-secondary))] sm:text-base">
             Tailored multimodal quotes with real-world routing, fuel dynamics, and advisor intelligence.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <GlassCard className="lg:col-span-2 space-y-6 border border-white/10 bg-gradient-to-br from-white/8 via-white/[0.07] to-white/3 shadow-[0_20px_60px_rgba(0,0,0,0.45)]" glow="orange">
-            <div className="flex flex-wrap items-center gap-3 mb-2">
-              <div className="p-3 rounded-xl bg-[hsl(var(--orange-glow))]/15 shadow-[0_0_25px_rgba(255,122,0,0.35)]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <GlassCard className="space-y-6 border border-white/10 bg-gradient-to-br from-white/8 via-white/[0.07] to-white/3 shadow-[0_20px_60px_rgba(0,0,0,0.45)] lg:col-span-2" glow="orange">
+            <div className="mb-2 flex flex-wrap items-center gap-3">
+              <div className="rounded-xl bg-[hsl(var(--orange-glow))]/15 p-3 shadow-[0_0_25px_rgba(255,122,0,0.35)]">
                 <Bot className="w-6 h-6 text-[hsl(var(--orange-glow))]" />
               </div>
               <div>
@@ -440,7 +441,7 @@ const Quotes = () => {
               </div>
               <GlowButton
                 variant="outline"
-                className="ml-auto border-white/20 bg-black/20 text-white hover:border-[hsl(var(--orange-glow))]/60"
+                className="ml-auto w-full border-white/20 bg-black/20 text-white hover:border-[hsl(var(--orange-glow))]/60 sm:w-auto"
                 onClick={handleResetConversation}
               >
                 Start Fresh
@@ -448,7 +449,7 @@ const Quotes = () => {
             </div>
 
             <div
-              className="space-y-4 max-h-[520px] overflow-y-auto pr-1 rounded-2xl border border-white/10 bg-black/20 p-4 shadow-inner shadow-black/40"
+              className="max-h-[420px] space-y-4 overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-4 pr-1 shadow-inner shadow-black/40 sm:max-h-[520px]"
               ref={chatContainerRef}
             >
               {messages.map((message) => (
@@ -457,7 +458,7 @@ const Quotes = () => {
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl border ${
+                    className={`max-w-full rounded-2xl border sm:max-w-[80%] ${
                       message.role === "user"
                         ? "bg-[hsl(var(--navy-deep))] border-white/10 p-4"
                         : "bg-white/5 border-[hsl(var(--orange-glow))]/30 p-6"
@@ -478,18 +479,18 @@ const Quotes = () => {
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <input
                 type="text"
                 placeholder="Describe your shipment..."
-                className="flex-1 px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder:text-[hsl(var(--text-secondary))] focus:outline-none focus:border-[hsl(var(--orange-glow))] focus:ring-2 focus:ring-[hsl(var(--orange-glow))]/25 transition-all"
+                className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white transition-all placeholder:text-[hsl(var(--text-secondary))] focus:border-[hsl(var(--orange-glow))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--orange-glow))]/25 sm:text-base"
                 value={userQuery}
                 onChange={(e) => setUserQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
               />
               <GlowButton
                 variant="primary"
-                className={`shrink-0 ${isSending ? "opacity-60 pointer-events-none" : ""}`}
+                className={`shrink-0 sm:w-auto ${isSending ? "pointer-events-none opacity-60" : ""}`}
                 onClick={() => void handleSend()}
               >
                 {isSending ? (
@@ -503,10 +504,10 @@ const Quotes = () => {
               </GlowButton>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <GlowButton
                 variant="primary"
-                className="flex items-center gap-2 shadow-[0_0_25px_rgba(255,122,0,0.35)]"
+                className="flex items-center gap-2 shadow-[0_0_25px_rgba(255,122,0,0.35)] sm:w-auto"
                 onClick={() => void handleGenerateQuote()}
               >
                 {quoteLoading ? (
@@ -517,7 +518,7 @@ const Quotes = () => {
                   <>Generate Quote</>
                 )}
               </GlowButton>
-              <p className="text-xs italic text-white/40">
+              <p className="text-xs italic text-white/60 sm:text-sm">
                 {readyToQuote ? "Details verified—your quote will appear momentarily." : "Collecting shipment intel..."}
               </p>
             </div>
@@ -537,14 +538,14 @@ const Quotes = () => {
 
           <div className="space-y-6">
             <GlassCard glow="cyan">
-              <h3 className="text-xl font-bold text-white mb-4">Test Scenarios</h3>
-              <div className="space-y-3">
+              <h3 className="mb-4">Test Scenarios</h3>
+              <div className="space-y-2 sm:space-y-3">
                 {demoScenarios.map((scenario) => (
                   <button
                     key={scenario.label}
                     type="button"
                     onClick={() => void handleSend(scenario.message)}
-                    className="w-full rounded-xl border border-white/10 bg-gradient-to-r from-white/10 via-white/5 to-transparent p-4 text-left transition-all hover:border-[hsl(var(--orange-glow))]/60 hover:shadow-[0_15px_35px_rgba(255,122,0,0.25)]"
+                    className="w-full rounded-xl border border-white/10 bg-gradient-to-r from-white/10 via-white/5 to-transparent p-4 text-left text-sm transition-all hover:border-[hsl(var(--orange-glow))]/60 hover:shadow-[0_15px_35px_rgba(255,122,0,0.25)] sm:text-base"
                   >
                     <p className="text-sm font-semibold text-white tracking-wide">{scenario.label}</p>
                     <p className="text-xs text-[hsl(var(--text-secondary))]">{scenario.description}</p>
@@ -554,7 +555,7 @@ const Quotes = () => {
             </GlassCard>
 
             <GlassCard glow="orange">
-              <h3 className="text-xl font-bold text-white mb-4">Collected Shipment Data</h3>
+              <h3 className="mb-4">Collected Shipment Data</h3>
               {summaryEntries.length ? (
                 <div className="space-y-3">
                   {summaryEntries.map(([key, value]) => (
@@ -577,7 +578,7 @@ const Quotes = () => {
             </GlassCard>
 
             <GlassCard glow="cyan">
-              <h3 className="text-xl font-bold text-white mb-4">Recent Quotes</h3>
+              <h3 className="mb-4">Recent Quotes</h3>
               <div className="space-y-3">
                 {recentQuotes.map((quoteItem, index) => (
                   <div 

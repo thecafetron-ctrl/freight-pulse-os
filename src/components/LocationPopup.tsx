@@ -16,16 +16,20 @@ export function LocationPopup({ vehicles, loads, position, onClose }: LocationPo
   };
 
   const locationName = vehicles[0]?.location || loads[0]?.origin || 'Location';
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
+  const safeLeft = Math.min(Math.max(position.x, 140), viewportWidth - 140);
+  const safeTop = Math.min(Math.max(position.y, 160), viewportHeight - 120);
 
   return (
     <div
       className="absolute bg-[hsl(var(--navy-panel))]/95 backdrop-blur-md border border-[hsl(var(--orange-glow))]/50 rounded-xl p-4 shadow-2xl z-50 min-w-[280px] max-w-[320px]"
       style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        transform: 'translate(-50%, 0%)',
+        left: `${safeLeft}px`,
+        top: `${safeTop}px`,
+        transform: 'translate(-50%, -110%)',
         boxShadow: '0 0 40px rgba(255, 122, 0, 0.3), 0 0 80px rgba(0, 230, 255, 0.2)',
-        pointerEvents: 'none'
+        pointerEvents: 'auto'
       }}
     >
       {/* Header */}

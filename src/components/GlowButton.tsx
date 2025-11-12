@@ -6,13 +6,15 @@ interface GlowButtonProps {
   className?: string;
   variant?: "primary" | "secondary" | "outline";
   onClick?: () => void;
+  type?: "button" | "submit" | "reset";
 }
 
 export const GlowButton = ({ 
   children, 
   className, 
   variant = "primary",
-  onClick 
+  onClick,
+  type = "button",
 }: GlowButtonProps) => {
   const variants = {
     primary: "bg-gradient-to-r from-[hsl(var(--orange-glow))] to-[hsl(var(--orange-bright))] text-white hover:shadow-[0_0_30px_rgba(255,122,0,0.4)] hover:scale-105",
@@ -23,8 +25,9 @@ export const GlowButton = ({
   return (
     <button
       onClick={onClick}
+      type={type}
       className={cn(
-        "px-6 py-3 rounded-xl font-semibold transition-all duration-300",
+        "inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 sm:w-auto sm:px-6 sm:py-3 sm:text-base",
         variants[variant],
         className
       )}

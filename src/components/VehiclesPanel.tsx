@@ -27,18 +27,25 @@ export function VehiclesPanel({ vehicles, onFindLoads }: VehiclesPanelProps) {
   });
 
   return (
-    <GlassCard glow="cyan">
-      <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-        <h3 className="text-xl font-bold text-white">Available Vehicles ({vehicles.length})</h3>
-        <button className="p-2 rounded-lg hover:bg-white/10 transition">
-          {isExpanded ? <ChevronUp className="w-5 h-5 text-[hsl(var(--cyan-glow))]" /> : <ChevronDown className="w-5 h-5 text-[hsl(var(--cyan-glow))]" />}
-        </button>
-      </div>
+    <GlassCard glow="cyan" className="space-y-4">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between rounded-xl border border-transparent bg-white/5 px-4 py-3 text-left transition hover:border-white/10"
+        onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+      >
+        <span className="text-base font-semibold text-white sm:text-lg">
+          Available Vehicles ({vehicles.length})
+        </span>
+        <span className="rounded-lg bg-white/5 p-2 text-[hsl(var(--cyan-glow))]">
+          {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+        </span>
+      </button>
 
       {isExpanded && (
         <div className="mt-4 space-y-4">
           {/* Filters */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(['All', 'Truck', 'Plane', 'Ship'] as const).map(type => (
               <button key={type} onClick={() => setFilter(type)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
@@ -62,7 +69,7 @@ export function VehiclesPanel({ vehicles, onFindLoads }: VehiclesPanelProps) {
           </div>
 
           {/* Vehicle Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto pr-2">
+          <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-4 lg:pr-2">
             {filteredVehicles.map(vehicle => (
               <div key={vehicle.id} className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-[hsl(var(--orange-glow))]/30 transition">
                 <div className="flex items-center justify-between mb-2">
@@ -79,7 +86,7 @@ export function VehiclesPanel({ vehicles, onFindLoads }: VehiclesPanelProps) {
                 {onFindLoads && (
                   <button
                     onClick={() => onFindLoads(vehicle)}
-                    className="w-full text-xs py-1.5 px-2 rounded bg-[hsl(var(--orange-glow))]/10 hover:bg-[hsl(var(--orange-glow))]/20 border border-[hsl(var(--orange-glow))]/30 text-[hsl(var(--orange-glow))] font-semibold transition"
+                    className="w-full rounded-lg border border-[hsl(var(--orange-glow))]/30 bg-[hsl(var(--orange-glow))]/10 px-3 py-2 text-xs font-semibold text-[hsl(var(--orange-glow))] transition hover:bg-[hsl(var(--orange-glow))]/20 hover:text-white"
                   >
                     🔍 Find Loads
                   </button>

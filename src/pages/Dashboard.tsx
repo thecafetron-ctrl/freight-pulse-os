@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 
@@ -22,6 +22,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { getFallbackDashboardSnapshot } from "@/data/insightsFallback";
 
 interface DashboardResponse {
   success: boolean;
@@ -57,6 +58,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const dataRef = useRef<DashboardSnapshot | null>(null);
 
   const fetchSnapshot = useCallback(async (silent = false) => {
     try {
@@ -72,10 +75,18 @@ const Dashboard = () => {
       }
 
       setData(payload.data);
+      dataRef.current = payload.data;
       setError(null);
+      setUsingFallback(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unexpected error loading dashboard";
       setError(message);
+      if (!dataRef.current) {
+        const fallback = getFallbackDashboardSnapshot();
+        dataRef.current = fallback;
+        setData(fallback);
+        setUsingFallback(true);
+      }
     } finally {
       if (silent) {
         setRefreshing(false);
@@ -196,7 +207,7 @@ const Dashboard = () => {
     return (
       <>
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-4">
           {statsCards.map((card, index) => (
             <GlassCard
               key={card.label}
@@ -241,7 +252,7 @@ const Dashboard = () => {
         </div>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-3 2xl:gap-6">
           <GlassCard glow="orange" className="2xl:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -361,7 +372,7 @@ const Dashboard = () => {
         </div>
 
         {/* Lane performance & Alerts */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6">
           <GlassCard glow="orange" className="xl:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-white">Lane Performance</h3>
@@ -445,7 +456,7 @@ const Dashboard = () => {
               <span>Real-time monitoring active</span>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             {data.systemStatus.map((system) => {
               const statusMeta = statusIconMap[system.status];
               return (
@@ -476,21 +487,36 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
-      <div className="max-w-[1800px] mx-auto p-6 space-y-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-white">Operations Dashboard</h1>
-            <p className="text-[hsl(var(--text-secondary))]">
+      <div className="app-shell-wide space-y-6 pb-10 pt-6 sm:space-y-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="leading-tight">Operations Dashboard</h1>
+            <p className="text-sm text-[hsl(var(--text-secondary))] sm:text-base">
               Real-time overview of AI-powered logistics performance
             </p>
           </div>
           {data && (
-            <div className="flex items-center gap-2 text-xs text-[hsl(var(--text-secondary))]">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span>Last updated {lastUpdated}</span>
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[hsl(var(--text-secondary))] sm:text-sm">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
+              <span className="whitespace-nowrap">Last updated {lastUpdated}</span>
             </div>
           )}
         </div>
+
+        {usingFallback && (
+          <div className="rounded-xl border border-yellow-400/40 bg-yellow-300/10 px-4 py-3 text-xs text-yellow-100 sm:text-sm">
+            Live analytics service is currently unreachable
+            {error ? (
+              <>
+                {" "}
+                ({error}).
+              </>
+            ) : (
+              "."
+            )}{" "}
+            Displaying McCarthy AI demo metrics so the experience remains uninterrupted.
+          </div>
+        )}
 
         {renderContent()}
       </div>

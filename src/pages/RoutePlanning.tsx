@@ -551,21 +551,21 @@ const RoutePlanning = () => {
 
   return (
     <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
-      <div className="max-w-[1800px] mx-auto p-6 space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold text-white relative inline-block">
+      <div className="app-shell-wide space-y-6 pb-12 pt-6 sm:space-y-8">
+        <div className="space-y-3">
+          <h1 className="relative inline-block leading-tight">
             AI Route Planning
             <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-[hsl(var(--orange-glow))] to-[hsl(var(--cyan-glow))] rounded-full shadow-[0_0_15px_rgba(255,122,0,0.6)]" />
           </h1>
-          <p className="text-[hsl(var(--text-secondary))]">
+          <p className="max-w-2xl text-sm text-[hsl(var(--text-secondary))] sm:text-base">
             Plan, optimize, and visualize multi-modal logistics routes with deterministic AI routing.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
           <GlassCard glow="cyan" className="space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-white">Route Inputs</h3>
+              <h3>Route Inputs</h3>
             </div>
 
             <div className="space-y-4">
@@ -618,7 +618,7 @@ const RoutePlanning = () => {
                     <Plus className="w-4 h-4" /> Add stop
                   </button>
                 </div>
-                <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
+                <div className="max-h-72 space-y-3 overflow-y-auto pr-1 sm:pr-2">
                   {stops.map((stop, index) => {
                     const isGeocoding = geocodingStops[stop.id];
                     return (
@@ -774,28 +774,28 @@ const RoutePlanning = () => {
             </div>
           </GlassCard>
 
-          <GlassCard glow="orange" className="xl:col-span-2 space-y-4">
-            <div className="h-[360px] rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+          <GlassCard glow="orange" className="space-y-4 xl:col-span-2">
+            <div className="h-[260px] overflow-hidden rounded-2xl border border-white/10 bg-white/5 sm:h-[320px] lg:h-[360px]">
               <RoutePlannerMap origin={origin} stops={mapStops} optimizedOrder={mapOrder} />
             </div>
 
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-white">Route Overview</h3>
-              <div className="text-right">
-                <p className="text-xs text-[hsl(var(--text-secondary))]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <h3>Route Overview</h3>
+              <div className="text-right text-xs text-[hsl(var(--text-secondary))] sm:text-sm">
+                <p>
                   {result
                     ? `Optimized at ${new Date(result.optimizedRoute.timestamp).toLocaleTimeString()}`
                     : "Awaiting optimization"}
                 </p>
                 {estimatedArrival && (
-                  <p className="text-xs text-[hsl(var(--text-secondary))]">
+                  <p>
                     Estimated Arrival: <span className="text-white">{estimatedArrival}</span>
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
               <GlassCard glow="orange" className="bg-white/5 border border-white/10">
                 <p className="text-xs text-[hsl(var(--text-secondary))]">Total Trip Cost</p>
                 <p className="text-2xl font-semibold text-white break-all">
@@ -837,7 +837,7 @@ const RoutePlanning = () => {
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-start gap-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start">
                 <div className="p-2 rounded-lg bg-[hsl(var(--orange-glow))]/20 text-[hsl(var(--orange-glow))]">
                   <Brain className="w-5 h-5" />
                 </div>
@@ -891,7 +891,7 @@ const RoutePlanning = () => {
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-white">
                 <TrendingUp className="w-4 h-4 text-[hsl(var(--cyan-glow))]" />
                 Before & After Comparison
               </h4>
@@ -928,9 +928,9 @@ const RoutePlanning = () => {
               )}
             </div>
 
-            <GlassCard glow="cyan" className="bg-white/5 border border-white/10">
-              <div className="flex items-center gap-3 mb-3">
-                <Navigation className="w-5 h-5 text-[hsl(var(--cyan-glow))]" />
+            <GlassCard glow="cyan" className="border border-white/10 bg-white/5">
+              <div className="mb-3 flex items-center gap-3">
+                <Navigation className="h-5 w-5 text-[hsl(var(--cyan-glow))]" />
                 <h4 className="text-sm font-semibold text-white">Stop Order</h4>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -951,7 +951,7 @@ const RoutePlanning = () => {
 
           <GlassCard glow="orange" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-white">AI Route Insights</h3>
+              <h3>AI Route Insights</h3>
               <div className="w-2 h-2 rounded-full bg-[hsl(var(--orange-glow))] animate-pulse" />
             </div>
 
