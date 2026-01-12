@@ -13,9 +13,9 @@ export const GlassCard = ({ children, className, glow = "none", style }: GlassCa
     <div
       style={style}
       className={cn(
-        "group relative rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] via-white/[0.02] to-white/[0.01] p-4 sm:p-6 lg:p-7 backdrop-blur-md transition-all duration-700 ease-out overflow-hidden",
-        "before:absolute before:inset-0 before:rounded-2xl before:opacity-0 before:transition-opacity before:duration-700",
-        "after:absolute after:inset-0 after:rounded-2xl after:pointer-events-none after:opacity-0 after:transition-opacity after:duration-1000",
+        "group relative rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] via-white/[0.02] to-white/[0.01] p-4 sm:p-6 lg:p-7 backdrop-blur-md transition-all duration-300 ease-out overflow-hidden",
+        "before:absolute before:inset-0 before:rounded-2xl before:opacity-0 before:transition-opacity before:duration-300",
+        "after:absolute after:inset-0 after:rounded-2xl after:pointer-events-none after:opacity-0 after:transition-opacity after:duration-400",
         glow === "orange" && [
           "hover:border-white/25 hover:shadow-[0_0_60px_rgba(255,255,255,0.12),0_8px_32px_rgba(0,0,0,0.4)]",
           "hover:scale-[1.01] hover:-translate-y-0.5",

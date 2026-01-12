@@ -27,7 +27,7 @@ export const GlowButton = ({
       "hover:scale-[1.03] hover:-translate-y-0.5",
       "active:scale-[0.98] active:translate-y-0",
       "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
-      "before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000",
+      "before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-500",
     ],
     secondary: [
       "relative overflow-hidden",
@@ -39,7 +39,7 @@ export const GlowButton = ({
       "hover:scale-[1.03] hover:-translate-y-0.5",
       "active:scale-[0.98] active:translate-y-0",
       "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent",
-      "before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000",
+      "before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-500",
     ],
     outline: [
       "relative overflow-hidden",
@@ -51,7 +51,7 @@ export const GlowButton = ({
       "hover:scale-[1.03] hover:-translate-y-0.5",
       "active:scale-[0.98] active:translate-y-0",
       "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
-      "before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-1000",
+      "before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-500",
     ]
   };
 
@@ -61,7 +61,7 @@ export const GlowButton = ({
       type={type}
       disabled={disabled}
       className={cn(
-        "inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-500 ease-out sm:w-auto sm:px-6 sm:py-3 sm:text-base",
+        "inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ease-out sm:w-auto sm:px-6 sm:py-3 sm:text-base",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:translate-y-0 disabled:hover:shadow-none",
         variants[variant],
         className

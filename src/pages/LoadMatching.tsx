@@ -73,18 +73,22 @@ const LoadMatching = () => {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to generate matches");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to generate matches (${response.status})`);
         }
 
         const data: MatchApiResponse = await response.json();
+      if (data.matches) {
         allMatches.push(...data.matches);
-
         setMatches((prev) => [...prev, ...data.matches]);
+      }
       }
 
       setLastGenerated(new Date().toLocaleTimeString());
     } catch (err: any) {
-      setError(err.message || "Backend connection failed. Ensure the API service is available.");
+      console.error("Match generation error:", err);
+      const errorMsg = err?.error || err?.message || "Backend connection failed. Ensure the API service is available.";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -104,7 +108,10 @@ const LoadMatching = () => {
         body: JSON.stringify({ loads: [load], trucks: vehicles }),
       });
 
-      if (!response.ok) throw new Error('Failed to generate matches');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to generate matches (${response.status})`);
+      }
 
       const data: MatchApiResponse = await response.json();
       setMatches(data.matches);
@@ -162,7 +169,10 @@ const LoadMatching = () => {
         body: JSON.stringify({ vehicle, loads }),
       });
 
-      if (!response.ok) throw new Error('Failed to find loads');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to find loads (${response.status})`);
+      }
 
       const data: MatchApiResponse = await response.json();
       setMatches(data.matches);

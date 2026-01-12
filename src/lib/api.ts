@@ -11,11 +11,10 @@ const resolveApiOrigin = (): string => {
     return envBaseUrl;
   }
 
-  if (isBrowser) {
-    const origin = window.location.origin ?? "";
-    if (isLocal) {
-      return `${origin}/.netlify/functions/server`;
-    }
+  // Always use Netlify functions path in production
+  // In local dev, use localhost:3001 if available, otherwise Netlify functions
+  if (isLocal) {
+    return "http://localhost:3001";
   }
 
   return "/.netlify/functions/server";
