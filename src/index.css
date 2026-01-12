@@ -75,8 +75,9 @@
   body {
     @apply bg-background text-foreground antialiased;
     background: 
-      radial-gradient(ellipse at top, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
-      radial-gradient(ellipse at bottom, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+      radial-gradient(ellipse 120% 80% at 20% 20%, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 20%, rgba(255, 255, 255, 0.01) 40%, transparent 70%),
+      radial-gradient(ellipse 100% 70% at 80% 80%, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.015) 20%, rgba(255, 255, 255, 0.008) 40%, transparent 70%),
+      radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.3) 80%, hsl(var(--navy-deep)) 100%),
       hsl(var(--navy-deep));
     background-attachment: fixed;
   }

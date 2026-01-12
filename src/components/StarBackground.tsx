@@ -33,12 +33,32 @@ export const StarBackground = () => {
 
   return (
     <div className="stars-container">
-      {/* Ambient gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/40 pointer-events-none" />
+      {/* Ambient gradient overlay - smooth fade to black */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.95) 100%)'
+        }}
+      />
       
-      {/* Radial gradient orbs for depth */}
-      <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-white/5 rounded-full blur-[120px] opacity-30 animate-pulse-slow pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-white/3 rounded-full blur-[100px] opacity-20 animate-pulse-slow pointer-events-none" style={{ animationDelay: '2s' }} />
+      {/* Radial gradient orbs for depth - smooth fade out */}
+      <div 
+        className="absolute top-1/4 left-1/4 w-[800px] h-[800px] animate-pulse-slow pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 20%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.01) 60%, transparent 80%)',
+          filter: 'blur(120px)',
+          opacity: 0.4
+        }}
+      />
+      <div 
+        className="absolute bottom-1/4 right-1/4 w-[700px] h-[700px] animate-pulse-slow pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 20%, rgba(255,255,255,0.015) 40%, rgba(255,255,255,0.008) 60%, transparent 80%)',
+          filter: 'blur(100px)',
+          opacity: 0.3,
+          animationDelay: '2s'
+        }}
+      />
       
       {stars.map((star) => (
         <div

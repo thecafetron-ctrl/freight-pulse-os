@@ -487,9 +487,24 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Ambient light effects */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-[100px] animate-glow-orb pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-white/3 rounded-full blur-[80px] animate-glow-orb pointer-events-none" style={{ animationDelay: '3s' }} />
+      {/* Ambient light effects - smooth fade to black */}
+      <div 
+        className="absolute top-0 left-1/4 w-[600px] h-[600px] animate-glow-orb pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.01) 70%, transparent 100%)',
+          filter: 'blur(100px)',
+          opacity: 0.5
+        }}
+      />
+      <div 
+        className="absolute bottom-0 right-1/4 w-[500px] h-[500px] animate-glow-orb pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.015) 50%, rgba(255,255,255,0.008) 70%, transparent 100%)',
+          filter: 'blur(80px)',
+          opacity: 0.4,
+          animationDelay: '3s'
+        }}
+      />
       
       <div className="app-shell-wide space-y-6 pb-10 pt-6 sm:space-y-8 relative z-10">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between animate-fade-in-up">
