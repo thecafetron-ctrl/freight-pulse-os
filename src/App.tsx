@@ -24,7 +24,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <div className="relative min-h-screen bg-black">
+        <div className="relative min-h-screen" style={{ background: 'hsl(var(--navy-deep))' }}>
           <StarBackground />
           <div className="relative z-10">
             <Navigation />

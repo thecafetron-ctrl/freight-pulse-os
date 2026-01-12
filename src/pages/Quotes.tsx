@@ -416,7 +416,7 @@ const Quotes = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen">
       <div className="app-shell-wide space-y-6 pb-12 pt-6 sm:space-y-8">
         <div className="space-y-3 animate-fade-in">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[0.65rem] uppercase tracking-[0.3em] text-white/70 sm:text-xs">

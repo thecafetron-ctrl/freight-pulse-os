@@ -486,7 +486,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       {/* Ambient light effects - smooth fade to black */}
       <div 
         className="absolute top-0 left-1/4 w-[600px] h-[600px] animate-glow-orb pointer-events-none"

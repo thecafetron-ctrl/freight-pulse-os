@@ -168,7 +168,7 @@ const Analytics = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen">
       <div className="max-w-[1800px] mx-auto p-6 space-y-6">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold text-white">AI Analytics Hub</h1>

@@ -500,7 +500,7 @@ const LeadGeneration = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen">
       <div className="app-shell-wide space-y-6 pb-12 pt-6 sm:space-y-8">
         <div className="rounded-xl border border-[hsl(var(--cyan-glow))]/40 bg-[hsl(var(--cyan-glow))]/10 px-4 py-3 text-xs text-[hsl(var(--text-secondary))] sm:text-sm">
           Demo data shown. Real deployments use your operational and public freight data to surface live shipper opportunities.
