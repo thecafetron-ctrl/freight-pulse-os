@@ -175,7 +175,7 @@ const LoadMatching = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
+    <div className="min-h-screen bg-black">
       <div className="app-shell-wide space-y-6 pb-12 pt-6 sm:space-y-8">
         {/* Header */}
         <div className="space-y-2 animate-fade-in">

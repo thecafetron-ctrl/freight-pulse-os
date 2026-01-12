@@ -2,69 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* STRUCTURE Demo - Black Theme Design System */
 
 @layer base {
   :root {
-    /* AI Freight OS Dark Theme */
-    --background: 215 45% 6%;
+    /* Structure Dark Theme - Pure Black */
+    --background: 0 0% 4%;
     --foreground: 0 0% 100%;
 
-    --card: 217 35% 8%;
+    --card: 0 0% 6%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 217 35% 8%;
+    --popover: 0 0% 6%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 25 100% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 4%;
 
-    --secondary: 188 100% 50%;
-    --secondary-foreground: 217 35% 8%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 4%;
 
-    --muted: 215 20% 15%;
-    --muted-foreground: 210 15% 70%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 25 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 0 0% 100%;
+    --accent-foreground: 0 0% 4%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 217 30% 18%;
-    --input: 217 30% 15%;
-    --ring: 25 100% 50%;
+    --border: 0 0% 15%;
+    --input: 0 0% 10%;
+    --ring: 0 0% 100%;
 
     --radius: 1rem;
 
-    /* AI Freight OS Custom Tokens */
-    --navy-deep: 215 45% 6%;
-    --navy-medium: 217 35% 8%;
-    --navy-panel: 216 32% 10%;
+    /* Structure Custom Tokens - Pure Black */
+    --navy-deep: 0 0% 4%;
+    --navy-medium: 0 0% 6%;
+    --navy-panel: 0 0% 8%;
     
-    --orange-glow: 25 100% 50%;
-    --orange-bright: 30 100% 60%;
+    /* Accent colors - Subtle white/gray */
+    --orange-glow: 0 0% 100%;
+    --orange-bright: 0 0% 90%;
     
-    --cyan-glow: 188 100% 50%;
-    --cyan-bright: 188 100% 60%;
+    --cyan-glow: 0 0% 85%;
+    --cyan-bright: 0 0% 75%;
     
     --text-primary: 0 0% 100%;
-    --text-secondary: 210 15% 70%;
+    --text-secondary: 0 0% 55%;
     
-    /* Gradients */
-    --gradient-panel: linear-gradient(145deg, hsl(216, 32%, 10%), hsl(217, 35%, 8%));
-    --gradient-button: linear-gradient(135deg, hsl(25, 100%, 50%), hsl(30, 100%, 60%));
+    /* Gradients - Black variants */
+    --gradient-panel: linear-gradient(145deg, hsl(0, 0%, 8%), hsl(0, 0%, 6%));
+    --gradient-button: linear-gradient(135deg, hsl(0, 0%, 100%), hsl(0, 0%, 90%));
     
-    /* Shadows & Glows */
-    --shadow-elevation: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    --glow-orange: 0 0 20px rgba(255, 122, 0, 0.3);
-    --glow-cyan: 0 0 20px rgba(0, 230, 255, 0.3);
-    --glow-soft: 0 4px 20px rgba(255, 122, 0, 0.15);
+    /* Shadows & Glows - Subtle white */
+    --shadow-elevation: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+    --glow-orange: 0 0 20px rgba(255, 255, 255, 0.1);
+    --glow-cyan: 0 0 20px rgba(255, 255, 255, 0.08);
+    --glow-soft: 0 4px 20px rgba(255, 255, 255, 0.05);
     
     /* Transitions */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -75,7 +74,11 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    background: hsl(var(--navy-deep));
+    background: 
+      radial-gradient(ellipse at top, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+      hsl(var(--navy-deep));
+    background-attachment: fixed;
   }
 
   h1 {
@@ -90,11 +93,11 @@ All colors MUST be HSL.
     @apply text-xl font-semibold leading-snug text-white sm:text-2xl;
   }
 
-  /* Glassmorphism utilities */
+  /* Glassmorphism utilities - Black variant */
   .glass-panel {
-    background: linear-gradient(145deg, rgba(14, 22, 35, 0.8), rgba(17, 26, 44, 0.6));
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: linear-gradient(145deg, rgba(10, 10, 10, 0.9), rgba(15, 15, 15, 0.7));
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .glow-orange {
@@ -105,13 +108,58 @@ All colors MUST be HSL.
     box-shadow: var(--glow-cyan);
   }
 
-  /* Animations */
-  @keyframes pulse-glow {
+  /* Star background */
+  .stars-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle var(--duration, 3s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  @keyframes twinkle {
     0%, 100% {
-      box-shadow: 0 0 10px rgba(255, 122, 0, 0.2);
+      opacity: var(--min-opacity, 0.2);
+      transform: scale(1);
     }
     50% {
-      box-shadow: 0 0 20px rgba(255, 122, 0, 0.4);
+      opacity: var(--max-opacity, 0.8);
+      transform: scale(1.2);
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+    }
+    25% {
+      transform: translateY(-10px) translateX(5px);
+    }
+    50% {
+      transform: translateY(-5px) translateX(-5px);
+    }
+    75% {
+      transform: translateY(-15px) translateX(3px);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
     }
   }
 
@@ -124,8 +172,199 @@ All colors MUST be HSL.
     }
   }
 
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scale-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slide-in-right {
+    0% {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+    }
+    50% {
+      filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.4));
+    }
+  }
+
+  @keyframes pulse-slow {
+    0%, 100% {
+      opacity: 0.2;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.4;
+      transform: scale(1.1);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  @keyframes float-slow {
+    0%, 100% {
+      transform: translateY(0) translateX(0) rotate(0deg);
+    }
+    33% {
+      transform: translateY(-20px) translateX(10px) rotate(2deg);
+    }
+    66% {
+      transform: translateY(-10px) translateX(-10px) rotate(-2deg);
+    }
+  }
+
+  @keyframes gradient-shift {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes glow-orb {
+    0%, 100% {
+      opacity: 0.3;
+      transform: scale(1);
+      filter: blur(40px);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.2);
+      filter: blur(60px);
+    }
+  }
+
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 8s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 3s infinite;
+  }
+
+  .animate-float-slow {
+    animation: float-slow 20s ease-in-out infinite;
+  }
+
+  .animate-gradient-shift {
+    background-size: 200% 200%;
+    animation: gradient-shift 8s ease infinite;
+  }
+
+  .animate-glow-orb {
+    animation: glow-orb 6s ease-in-out infinite;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out forwards;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.5s ease-out forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.5s ease-out forwards;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  /* Premium glass morphism enhancements */
+  .glass-premium {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      rgba(255, 255, 255, 0.01) 100%
+    );
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* Premium text gradient */
+  .text-gradient-premium {
+    background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow effects */
+  .glow-soft {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  }
+
+  .glow-medium {
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
+  }
+
+  .glow-strong {
+    box-shadow: 0 0 60px rgba(255, 255, 255, 0.2);
   }
 
   .typing-indicator {
@@ -162,6 +401,35 @@ All colors MUST be HSL.
       opacity: 1;
     }
   }
+
+  /* Smooth transitions for all interactive elements */
+  button, a, input, select, textarea {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar - Minimal black theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(0, 0%, 6%);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(0, 0%, 20%);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(0, 0%, 30%);
+  }
 }
 
 @layer utilities {
@@ -180,4 +448,11 @@ All colors MUST be HSL.
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
   }
+
+  /* Stagger animation delays */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
 }

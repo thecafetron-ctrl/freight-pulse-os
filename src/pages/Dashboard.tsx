@@ -212,8 +212,8 @@ const Dashboard = () => {
             <GlassCard
               key={card.label}
               glow={card.glow}
-              className="animate-slide-in"
-              style={{ animationDelay: `${index * 0.07}s` }}
+              className="animate-fade-in-up"
+              style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
@@ -232,17 +232,17 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div
-                  className={`p-3 rounded-xl ${
+                  className={`p-3 rounded-xl transition-all duration-500 ${
                     card.glow === "orange"
-                      ? "bg-[hsl(var(--orange-glow))]/10"
-                      : "bg-[hsl(var(--cyan-glow))]/10"
+                      ? "bg-gradient-to-br from-white/15 to-white/5 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                      : "bg-gradient-to-br from-white/12 to-white/5 shadow-[0_0_20px_rgba(255,255,255,0.08)]"
                   }`}
                 >
                   <card.icon
-                    className={`w-6 h-6 ${
+                    className={`w-6 h-6 transition-all duration-500 ${
                       card.glow === "orange"
-                        ? "text-[hsl(var(--orange-glow))]"
-                        : "text-[hsl(var(--cyan-glow))]"
+                        ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                        : "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
                     }`}
                   />
                 </div>
@@ -486,11 +486,15 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
-      <div className="app-shell-wide space-y-6 pb-10 pt-6 sm:space-y-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* Ambient light effects */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-[100px] animate-glow-orb pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-white/3 rounded-full blur-[80px] animate-glow-orb pointer-events-none" style={{ animationDelay: '3s' }} />
+      
+      <div className="app-shell-wide space-y-6 pb-10 pt-6 sm:space-y-8 relative z-10">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between animate-fade-in-up">
           <div className="space-y-1">
-            <h1 className="leading-tight">Operations Dashboard</h1>
+            <h1 className="leading-tight text-gradient-premium">Operations Dashboard</h1>
             <p className="text-sm text-[hsl(var(--text-secondary))] sm:text-base">
               Real-time overview of AI-powered logistics performance
             </p>
@@ -514,7 +518,7 @@ const Dashboard = () => {
             ) : (
               "."
             )}{" "}
-            Displaying McCarthy AI demo metrics so the experience remains uninterrupted.
+            Displaying Structure AI demo metrics so the experience remains uninterrupted.
           </div>
         )}
 

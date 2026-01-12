@@ -357,7 +357,7 @@ const summarizeShipperProfile = (profile: ShipperProfile): string[] => [
     : "Freight type not declared — AI will infer from industry and cadence.",
   profile.targetLanes.length
     ? `Priority corridors: ${profile.targetLanes.join(", ")}.`
-    : "Add lanes so McCarthy AI can anchor search to your core network.",
+    : "Add lanes so Structure AI can anchor search to your core network.",
   profile.industries.length
     ? `Verticals: ${profile.industries.join(", ")} within ${profile.companySize.toLowerCase()} buying cycles.`
     : `Company size: ${profile.companySize}. Add industries to sharpen targeting.`,
@@ -391,12 +391,12 @@ const buildShipperOutreach = (lead: EnrichedShipperLead, profile: ShipperProfile
   return [
     `Hi ${lead.contactRole.split(" ")[0]},`,
     "",
-    `McCarthy AI is tracking ${lead.company}'s ${lead.industry.toLowerCase()} freight program and sees recurring ${equipment.toLowerCase()} demand from ${lane}.`,
+    `Structure AI is tracking ${lead.company}'s ${lead.industry.toLowerCase()} freight program and sees recurring ${equipment.toLowerCase()} demand from ${lane}.`,
     `We help ${profile.companySize.toLowerCase()} shippers benchmark providers in real time so ${lead.contractMix.toLowerCase()} awards hit SLA without firefighting.`,
     `Within 24 hours we can surface vetted carriers already running these corridors, including rate guidance and dwell benchmarks tuned for ${lead.shipmentCadence.toLowerCase()} cadence.`,
     "Would you be open to a quick walk-through next week?",
     "",
-    "— McCarthy AI Revenue Team",
+    "— Structure Revenue Team",
   ].join("\n");
 };
 
@@ -410,12 +410,12 @@ const buildCarrierOutreach = (lead: EnrichedCarrierLead, profile: CarrierProfile
   return [
     `Hi ${lead.contactName},`,
     "",
-    `We are expanding McCarthy AI’s ${equipment.toLowerCase()} network for shippers moving freight along ${lane}.`,
+    `We are expanding Structure's ${equipment.toLowerCase()} network for shippers moving freight along ${lane}.`,
     `Our platform pushes pre-vetted loads to partners that match your ${lead.driverModel.toLowerCase()} model and ${lead.capacityNotes.toLowerCase()}.`,
     "You keep control of pricing; we automate onboarding, paperwork, and settle within 48 hours.",
     "Can we share the volume and margin profile your fleet would see this quarter?",
     "",
-    "— McCarthy AI Capacity Partnerships",
+    "— Structure Capacity Partnerships",
   ].join("\n");
 };
 
@@ -500,7 +500,7 @@ const LeadGeneration = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
+    <div className="min-h-screen bg-black">
       <div className="app-shell-wide space-y-6 pb-12 pt-6 sm:space-y-8">
         <div className="rounded-xl border border-[hsl(var(--cyan-glow))]/40 bg-[hsl(var(--cyan-glow))]/10 px-4 py-3 text-xs text-[hsl(var(--text-secondary))] sm:text-sm">
           Demo data shown. Real deployments use your operational and public freight data to surface live shipper opportunities.
@@ -510,7 +510,7 @@ const LeadGeneration = () => {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[10px] uppercase tracking-[0.35em] text-white/70 sm:text-xs">
               <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--orange-glow))]" />
-              McCarthy AI Revenue Engine
+              Structure AI Revenue Engine
             </div>
             <h1 className="text-3xl font-semibold text-white sm:text-4xl lg:text-5xl">AI Lead Generation Suite</h1>
             <p className="max-w-3xl text-sm text-[hsl(var(--text-secondary))] sm:text-base">

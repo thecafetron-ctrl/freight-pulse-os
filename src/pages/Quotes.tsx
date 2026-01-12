@@ -416,7 +416,7 @@ const Quotes = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
+    <div className="min-h-screen bg-black">
       <div className="app-shell-wide space-y-6 pb-12 pt-6 sm:space-y-8">
         <div className="space-y-3 animate-fade-in">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[0.65rem] uppercase tracking-[0.3em] text-white/70 sm:text-xs">
@@ -460,7 +460,7 @@ const Quotes = () => {
                   <div
                     className={`max-w-full rounded-2xl border sm:max-w-[80%] ${
                       message.role === "user"
-                        ? "bg-[hsl(var(--navy-deep))] border-white/10 p-4"
+                        ? "bg-black border-white/10 p-4"
                         : "bg-white/5 border-[hsl(var(--orange-glow))]/30 p-6"
                     }`}
                   >

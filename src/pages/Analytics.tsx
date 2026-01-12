@@ -134,7 +134,7 @@ const Analytics = () => {
 
   if (loading && !data) {
     return (
-      <div className="min-h-screen bg-[hsl(var(--navy-deep))] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-white animate-spin" />
       </div>
     );
@@ -142,7 +142,7 @@ const Analytics = () => {
 
   if (error && !data) {
     return (
-      <div className="min-h-screen bg-[hsl(var(--navy-deep))] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <GlassCard glow="orange" className="max-w-md w-full text-center py-12">
           <div className="flex flex-col items-center gap-4">
             <AlertTriangle className="w-8 h-8 text-red-400" />
@@ -168,7 +168,7 @@ const Analytics = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
+    <div className="min-h-screen bg-black">
       <div className="max-w-[1800px] mx-auto p-6 space-y-6">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold text-white">AI Analytics Hub</h1>
@@ -188,7 +188,7 @@ const Analytics = () => {
             ) : (
               "."
             )}{" "}
-            Showing McCarthy AI’s curated demo insights to keep the walkthrough seamless.
+            Showing Structure AI's curated demo insights to keep the walkthrough seamless.
           </div>
         )}
 

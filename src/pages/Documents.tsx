@@ -331,7 +331,7 @@ const Documents = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--navy-deep))] pb-12">
+    <div className="min-h-screen bg-black pb-12">
       <div className="max-w-[1800px] mx-auto p-6 space-y-6">
         <div className="space-y-2 animate-fade-in text-center sm:text-left">
           <h1 className="text-3xl font-bold text-white sm:text-4xl">AI Document Automation</h1>

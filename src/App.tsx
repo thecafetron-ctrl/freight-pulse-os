@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { DemoDisclaimer } from "@/components/DemoDisclaimer";
+import { StarBackground } from "@/components/StarBackground";
 import Dashboard from "./pages/Dashboard";
 import Quotes from "./pages/Quotes";
 import LoadMatching from "./pages/LoadMatching";
@@ -23,21 +24,24 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
-          <Navigation />
-          <DemoDisclaimer />
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/quotes" element={<Quotes />} />
-            <Route path="/load-matching" element={<LoadMatching />} />
-            <Route path="/documents" element={<Documents />} />
-            <Route path="/forecasting" element={<Forecasting />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/lead-generation" element={<LeadGeneration />} />
-            <Route path="/route-planning" element={<RoutePlanning />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+        <div className="relative min-h-screen bg-black">
+          <StarBackground />
+          <div className="relative z-10">
+            <Navigation />
+            <DemoDisclaimer />
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/quotes" element={<Quotes />} />
+              <Route path="/load-matching" element={<LoadMatching />} />
+              <Route path="/documents" element={<Documents />} />
+              <Route path="/forecasting" element={<Forecasting />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/lead-generation" element={<LeadGeneration />} />
+              <Route path="/route-planning" element={<RoutePlanning />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </div>
         </div>
       </BrowserRouter>
     </TooltipProvider>

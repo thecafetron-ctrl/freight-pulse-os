@@ -911,7 +911,7 @@ const Forecasting = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--navy-deep))]">
+    <div className="min-h-screen bg-black">
       <div className="max-w-[1800px] mx-auto p-6 space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between animate-fade-in">
           <div>
